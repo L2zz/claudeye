@@ -1,0 +1,22 @@
+# Local hooks run the project's own tools via uv — single source of truth, no
+# version drift vs pyproject/CI. Fast checks only at commit time; pytest runs in
+# CI (and via `make test`).
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check (uv)
+        entry: uv run ruff check --fix
+        language: system
+        types_or: [python, pyi]
+      - id: ruff-format
+        name: ruff format (uv)
+        entry: uv run ruff format
+        language: system
+        types_or: [python, pyi]
+      - id: mypy
+        name: mypy (uv)
+        entry: uv run mypy claudeye
+        language: system
+        pass_filenames: false
+        types: [python]

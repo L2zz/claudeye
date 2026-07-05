@@ -1,0 +1,75 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# CodeRabbit PR review config. Style, formatting, import order, and typing are
+# owned by the ruff + mypy + pytest CI gate; the bot is told not to duplicate
+# it. Every architectural invariant the bot needs lives inline here.
+language: en-US
+
+reviews:
+  profile: chill                 # solo repo, keep noise low
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  auto_review:
+    enabled: true
+    drafts: false
+
+  tone_instructions: >-
+    Terse senior-reviewer tone. Rank findings by severity; skip style/format —
+    the ruff + mypy + pytest CI gate owns it.
+
+  path_instructions:
+    # ---- global priorities ----
+    - path: "**"
+      instructions: >-
+        Prioritize, in order: (1) the claudeye invariants defined below,
+        (2) logic & correctness bugs, (3) layer-boundary violations. Do NOT
+        report anything a linter or type-checker enforces.
+
+    # ---- the gate owns style: suppress duplication ----
+    - path: "**/*.py"
+      instructions: >-
+        CI runs ruff (lint + format), mypy, and pytest. Do NOT flag formatting,
+        import ordering, line length, or missing type annotations — redundant.
+        Focus on logic, correctness, and the invariants below.
+
+    # ---- claudeye core invariants (the layered claudeye package) ----
+    - path: "claudeye/**"
+      instructions: >-
+        ZERO RUNTIME DEPENDENCY: the analyzer must import only the Python
+        standard library. Flag any new third-party import.
+
+        LAYER BOUNDARY: dependencies flow one way, ingest -> analyze -> render.
+        The summary dict returned by build_summary is the ONLY contract between
+        analyze and render; render must consume that dict and must not reach
+        into analyze/ingest internals. Flag cross-layer reach-through.
+
+        NO RAW TRANSCRIPT TEXT: prompts, tool outputs, and file contents must
+        NEVER enter the summary dict or the report — only aggregated numbers.
+        File paths are home-relativized and redactable. Flag any path that
+        could carry raw prompt/output/file text into build_summary,
+        render_html, or render_json.
+
+        SELF-CONTAINED REPORT: the embedded HTML/CSS/JS must have no external
+        requests (no CDN, fonts, scripts, fetch/XHR/WebSocket). All dynamic
+        values must reach the DOM via textContent, never innerHTML, so hostile
+        strings in paths or names cannot inject markup. Flag innerHTML use or
+        any external URL in the report template.
+
+        GLOBAL DEDUP CORRECTNESS: fork/continue sessions copy historical lines
+        verbatim (uuid included). Counting must dedup by line uuid, then by API
+        message id for usage, and by tool_use_id for tool calls/results, so no
+        activity is double-counted. Flag aggregation paths that could count a
+        copied line twice.
+
+        ADVICE SINGLE SOURCE: advice rules run in Python; the report derives
+        all warning colors and flags from advice item targets. Do NOT duplicate
+        threshold logic in the JS template. Flag threshold comparisons added to
+        the report JS that should live in _build_advice.
+
+        CONFIDENCE LABELS: any new metric must be labeled measured / inferred /
+        approximate consistently with CONFIDENCE_NOTES. Flag a new metric that
+        blends measured and estimated values without a label.
+
+chat:
+  auto_reply: true

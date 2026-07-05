@@ -1,0 +1,45 @@
+name: Bug report
+description: Tell us about something that behaves differently than expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks. The minimum needed to reproduce lets us confirm it quickly.
+        The report carries no raw text, but please double-check that any logs
+        you paste don't contain sensitive info like paths or file names.
+  - type: textarea
+    id: what
+    attributes:
+      label: What went wrong?
+      description: The command you ran, what you observed, and what you expected.
+      placeholder: |
+        Ran: claudeye --one-week
+        Got: ...
+        Expected: ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "Output of `claudeye --version`"
+      placeholder: claudeye 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: OS · shell · python3 version
+      placeholder: macOS 14 · zsh · Python 3.12
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / parse warnings
+      description: stderr output or the report's parse warnings (with sensitive info removed)
+      render: text
+    validations:
+      required: false

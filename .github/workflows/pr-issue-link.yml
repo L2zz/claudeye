@@ -1,0 +1,31 @@
+name: PR issue link
+
+# Every PR must reference an issue (CONTRIBUTING: "이슈 먼저 (필수)").
+# Fail unless the title or body carries a GitHub closing keyword + issue
+# number (Closes/Fixes/Resolves #N). `edited` re-checks when the author
+# adds the reference after opening.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  require-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require a linked issue (Closes #N)
+        env:
+          # Via env, never inlined into the script — a PR title/body is
+          # untrusted input and must not be interpolated into `run:`.
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if printf '%s\n%s\n' "$PR_TITLE" "$PR_BODY" \
+            | grep -Eiq '(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]*:?[[:space:]]*#[0-9]+'; then
+            echo "PR references an issue — OK."
+          else
+            echo "::error::This PR must reference an issue. Add 'Closes #<number>' to the PR description (see CONTRIBUTING.md). Issue-less PRs are not accepted."
+            exit 1
+          fi

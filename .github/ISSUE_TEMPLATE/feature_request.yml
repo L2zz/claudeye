@@ -1,0 +1,34 @@
+name: Feature request
+description: Propose a new metric, view, or option
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        claudeye deliberately keeps a narrow scope (zero dependencies · no raw
+        text · no billing-grade cost — approximate cost sorting is allowed). It
+        helps to note how your proposal fits within these lines.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you solving?
+      description: What's inconvenient now, or which waste or pattern you want to see.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Proposed approach
+      description: Which metric, view, or option. If you can, whether it's measured or estimated.
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope check
+      description: Does it conflict with the constraints below?
+      options:
+        - "No conflict (standard library · no raw text · not billing-grade cost)"
+        - "Might conflict — needs discussion"
+    validations:
+      required: true

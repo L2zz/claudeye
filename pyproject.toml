@@ -1,0 +1,50 @@
+[project]
+name = "claudeye"
+version = "0.1.0"
+description = "An eye on your Claude Code usage — find context-waste patterns locally"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+# Runtime is zero-dependency by design: standard library only. Everything
+# below is DEV tooling only (CI + local checks).
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.15", "mypy>=1.13"]
+
+[project.scripts]
+claudeye = "claudeye.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["claudeye*"]
+
+[tool.pytest.ini_options]
+# pytest runs the existing unittest-style suite as-is.
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+# ruff format owns code line-length; E501 only fires on the embedded HTML/CSS/JS
+# report template (a single raw string that must not be reflowed).
+ignore = ["E501"]
+
+[tool.mypy]
+# 3.10 is mypy's floor; runtime still supports 3.9 (ruff target-version + the CI
+# matrix's 3.9 job enforce that).
+python_version = "3.10"
+files = ["claudeye"]
+# Default (non-strict) for now; ratchet to strict as the layered package
+# tightens.
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+ignore_errors = true

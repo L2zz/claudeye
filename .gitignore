@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+report.html
+summary.json
+.venv/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+*.egg-info/
+
+# Maintainer's private Claude Code harness (skills, settings, worktrees).
+# Shared, tool-neutral guidance lives in the tracked root AGENTS.md /
+# CLAUDE.md / CONTRIBUTING.md — not here.
+.claude/
