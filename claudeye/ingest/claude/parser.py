@@ -1,17 +1,16 @@
-"""Filesystem discovery and lenient JSONL parsing.
+"""Claude Code adapter: filesystem discovery and lenient JSONL parsing.
 
-The ingest layer turns a Claude Code projects directory into a stream of
-normalized domain Events. It is lenient by contract: a corrupt line
-becomes a ParseWarning, never an exception, so one bad line cannot
-discard a whole session file. This module owns discovery
-(iter_session_files) and per-line parsing (parse_transcript).
+Turns a Claude Code projects directory into a stream of normalized domain
+Events. It is lenient by contract: a corrupt line becomes a ParseWarning,
+never an exception, so one bad line cannot discard a whole session file.
+This module owns discovery (iter_session_files) and per-line parsing
+(parse_transcript); ClaudeSource wraps them behind the SessionSource port.
 """
 
 from __future__ import annotations
 
 import json
 from collections.abc import Iterator
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +22,7 @@ from claudeye.domain import (
     ToolUseCall,
     Usage,
 )
+from claudeye.ingest.timeutil import _parse_timestamp
 
 #: Alias layer for usage field names. Claude Code has historically emitted
 #: snake_case; camelCase variants are accepted defensively so a schema drift
@@ -300,21 +300,3 @@ def _json_size(value: Any) -> int:
         return len(json.dumps(value, ensure_ascii=False).encode("utf-8", errors="replace"))
     except (TypeError, ValueError):
         return 0
-
-
-def _parse_timestamp(raw: Any) -> datetime | None:
-    """Parse an ISO-8601 transcript timestamp, returning None on failure.
-
-    Naive values are assumed UTC so all downstream comparisons stay
-    timezone-aware.
-    """
-    if not isinstance(raw, str) or not raw:
-        return None
-    text = raw[:-1] + "+00:00" if raw.endswith("Z") else raw
-    try:
-        parsed = datetime.fromisoformat(text)
-    except ValueError:
-        return None
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed

@@ -20,9 +20,9 @@ from claudeye.analyze import analyze_events, build_summary
 from claudeye.domain import AdviceConfig, Event, ParseWarning
 from claudeye.ingest import (
     _digest_dir,
-    iter_session_files,
     load_advice_config,
     load_or_parse_transcript,
+    resolve_source,
 )
 from claudeye.render import render_data_dir, render_html, render_json
 
@@ -224,12 +224,13 @@ def run_analyze(args: argparse.Namespace) -> int:
 
     warnings: list[ParseWarning] = []
     cache_dir = None if getattr(args, "no_cache", False) else _digest_dir()
+    source = resolve_source("claude")
 
     def all_events() -> Iterator[Event]:
-        for session_file in iter_session_files(root, args.project):
+        for session_file in source.iter_session_files(root, args.project):
             if since is not None and _mtime_before(session_file.path, since):
                 continue  # a file cannot hold lines newer than its own mtime
-            yield from load_or_parse_transcript(session_file, warnings, cache_dir)
+            yield from load_or_parse_transcript(session_file, warnings, cache_dir, source=source)
 
     result = analyze_events(all_events(), since=since)
     summary = build_summary(
