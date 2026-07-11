@@ -1,0 +1,10 @@
+{
+  "name": "claudeye",
+  "description": "Analyze your Claude Code sessions locally and surface where context is being wasted — right inside a chat session.",
+  "version": "0.1.0",
+  "author": { "name": "L2zz", "email": "ulla4571@gmail.com" },
+  "homepage": "https://github.com/L2zz/claudeye",
+  "repository": "https://github.com/L2zz/claudeye",
+  "license": "MIT",
+  "keywords": ["claude-code", "usage", "context", "analysis", "report"]
+}

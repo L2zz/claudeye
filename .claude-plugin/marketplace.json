@@ -1,0 +1,13 @@
+{
+  "name": "l2zz-tools",
+  "owner": { "name": "L2zz", "email": "ulla4571@gmail.com" },
+  "description": "L2zz's personal Claude Code plugins.",
+  "plugins": [
+    {
+      "name": "claudeye",
+      "source": ".",
+      "description": "Analyze your Claude Code sessions and surface context-waste patterns.",
+      "category": "analysis"
+    }
+  ]
+}
