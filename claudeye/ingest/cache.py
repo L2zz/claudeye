@@ -33,7 +33,7 @@ from claudeye.ingest.source import SessionSource
 from claudeye.ingest.timeutil import _parse_timestamp
 
 #: Digest layout version, bumped when the record encoding changes.
-DIGEST_SCHEMA = 4
+DIGEST_SCHEMA = 5
 
 
 def _digest_dir() -> Path:
@@ -54,7 +54,7 @@ def _event_to_record(event: Event) -> dict[str, Any]:
 
     Short keys keep digests small and fast to parse: k kind, t timestamp,
     u uuid, cwd cwd, ag agent_id, m message_id, as attribution skill,
-    md model, us usage 4-tuple, ae api error, ra retry attempt, cb compact
+    md model, us usage 5-tuple, ae api error, ra retry attempt, cb compact
     boundary, cp compact preTokens, tu tool_uses, tr tool_results, al agent link.
     """
     record: dict[str, Any] = {"k": event.kind}
@@ -79,6 +79,7 @@ def _event_to_record(event: Event) -> dict[str, Any]:
             usage.output_tokens,
             usage.cache_read_tokens,
             usage.cache_creation_tokens,
+            usage.reasoning_tokens,
         ]
     if event.is_api_error:
         record["ae"] = 1
@@ -107,12 +108,13 @@ def _record_to_event(record: dict[str, Any], session_file: SessionFile) -> Event
     """Decode one digest record back into an Event (inverse of the encoder)."""
     usage = None
     if "us" in record:
-        i, o, cr, cc = record["us"]
+        i, o, cr, cc, rt = record["us"]
         usage = Usage(
             input_tokens=i,
             output_tokens=o,
             cache_read_tokens=cr,
             cache_creation_tokens=cc,
+            reasoning_tokens=rt,
         )
     return Event(
         project=session_file.project,

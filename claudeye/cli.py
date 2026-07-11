@@ -19,6 +19,8 @@ from claudeye import __version__ as VERSION
 from claudeye.analyze import analyze_events, build_summary
 from claudeye.domain import AdviceConfig, Event, ParseWarning
 from claudeye.ingest import (
+    SOURCES,
+    SessionSource,
     _digest_dir,
     load_advice_config,
     load_or_parse_transcript,
@@ -42,9 +44,18 @@ def build_arg_parser() -> argparse.ArgumentParser:
         description="Parse JSONL transcripts, aggregate, and render the report.",
     )
     analyze.add_argument(
+        "--source",
+        default="claude",
+        choices=[*sorted(SOURCES), "auto"],
+        help="agent whose sessions to analyze: claude, codex, or auto "
+        "(every agent whose default root exists); default: claude",
+    )
+    analyze.add_argument(
         "--input",
-        default=str(Path.home() / ".claude" / "projects"),
-        help="projects root holding <project>/<session>.jsonl (default: ~/.claude/projects)",
+        default=None,
+        help="session root to scan (default: the chosen source's own root — "
+        "~/.claude/projects for claude, ~/.codex/sessions for codex); "
+        "ignored with --source auto",
     )
     analyze.add_argument(
         "--out", default="report.html", help="HTML report path (default: report.html)"
@@ -196,6 +207,43 @@ def _mtime_before(path: Path, cutoff: datetime) -> bool:
     return datetime.fromtimestamp(mtime, tz=timezone.utc) < cutoff
 
 
+def _resolve_sources(args: argparse.Namespace) -> list[tuple[SessionSource, Path]]:
+    """Resolve --source/--input into the (adapter, root) pairs to scan.
+
+    'auto' includes every registered agent whose own default root exists
+    under the home directory; a named source uses --input when given, else
+    its detected default root.
+
+    Raises:
+      FileNotFoundError: when no usable session root can be resolved.
+    """
+    home = Path.home()
+    source_name = getattr(args, "source", "claude")
+    if source_name == "auto":
+        pairs: list[tuple[SessionSource, Path]] = []
+        for source in SOURCES.values():
+            root = source.detect(home)
+            if root is not None:
+                pairs.append((source, root))
+        if not pairs:
+            raise FileNotFoundError(
+                "no known agent sessions found (looked for the claude and codex roots)"
+            )
+        return pairs
+    source = resolve_source(source_name)
+    if args.input:
+        root = Path(args.input).expanduser()
+        if not root.is_dir():
+            raise FileNotFoundError(f"input directory not found: {root}")
+        return [(source, root)]
+    detected = source.detect(home)
+    if detected is None:
+        raise FileNotFoundError(
+            f"no {source.name} session root found under {home}; pass --input to point at one"
+        )
+    return [(source, detected)]
+
+
 def run_analyze(args: argparse.Namespace) -> int:
     """Execute the analyze subcommand end to end, returning an exit code.
 
@@ -204,10 +252,6 @@ def run_analyze(args: argparse.Namespace) -> int:
     (sessions, warnings, top pollution source) to stdout.
     """
     started = time.monotonic()
-    root = Path(args.input).expanduser()
-    if not root.is_dir():
-        print(f"error: input directory not found: {root}", file=sys.stderr)
-        return 2
     try:
         since = _resolve_since(args)
     except ValueError:
@@ -215,6 +259,11 @@ def run_analyze(args: argparse.Namespace) -> int:
             f"error: --since must be ISO date/datetime, got: {args.since}",
             file=sys.stderr,
         )
+        return 2
+    try:
+        source_roots = _resolve_sources(args)
+    except FileNotFoundError as exc:
+        print(f"error: {exc}", file=sys.stderr)
         return 2
 
     if getattr(args, "no_config", False):
@@ -224,19 +273,21 @@ def run_analyze(args: argparse.Namespace) -> int:
 
     warnings: list[ParseWarning] = []
     cache_dir = None if getattr(args, "no_cache", False) else _digest_dir()
-    source = resolve_source("claude")
 
     def all_events() -> Iterator[Event]:
-        for session_file in source.iter_session_files(root, args.project):
-            if since is not None and _mtime_before(session_file.path, since):
-                continue  # a file cannot hold lines newer than its own mtime
-            yield from load_or_parse_transcript(session_file, warnings, cache_dir, source=source)
+        for source, root in source_roots:
+            for session_file in source.iter_session_files(root, args.project):
+                if since is not None and _mtime_before(session_file.path, since):
+                    continue  # a file cannot hold lines newer than its own mtime
+                yield from load_or_parse_transcript(
+                    session_file, warnings, cache_dir, source=source
+                )
 
     result = analyze_events(all_events(), since=since)
     summary = build_summary(
         result,
         warnings,
-        input_root=str(root),
+        input_root=", ".join(str(root) for _, root in source_roots),
         since=since,
         project_filter=args.project,
         redact_paths=args.redact_paths,

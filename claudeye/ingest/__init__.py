@@ -16,13 +16,15 @@ from claudeye.ingest.claude import (
     iter_session_files,
     parse_transcript,
 )
+from claudeye.ingest.codex import CodexSource
 from claudeye.ingest.settings import load_advice_config
 from claudeye.ingest.source import SessionSource
 from claudeye.ingest.timeutil import _parse_timestamp
 
 #: Registered source adapters keyed by their agent tag.
 _CLAUDE = ClaudeSource()
-SOURCES: dict[str, SessionSource] = {_CLAUDE.name: _CLAUDE}
+_CODEX = CodexSource()
+SOURCES: dict[str, SessionSource] = {_CLAUDE.name: _CLAUDE, _CODEX.name: _CODEX}
 
 
 def resolve_source(name: str) -> SessionSource:
@@ -41,6 +43,7 @@ __all__ = [
     "SOURCES",
     "SYNTHETIC_MODEL",
     "ClaudeSource",
+    "CodexSource",
     "SessionSource",
     "_digest_dir",
     "_parse_timestamp",

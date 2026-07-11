@@ -90,7 +90,8 @@ claudeye --data-dir facets/       # also write the agent facet files
 
 | Option | Meaning |
 |---|---|
-| `--input` | projects root (default `~/.claude/projects`) |
+| `--source` | agent to analyze: `claude`, `codex`, or `auto` (every agent whose root exists); default `claude` |
+| `--input` | session root to scan (default: the source's own root — `~/.claude/projects` or `~/.codex/sessions`); ignored with `--source auto` |
 | `--out` | HTML report path (default `report.html`) |
 | `--open` | open the report in your browser when done |
 | `--json PATH` | also write the summary JSON artifact |
