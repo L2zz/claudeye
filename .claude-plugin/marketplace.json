@@ -5,7 +5,7 @@
   "plugins": [
     {
       "name": "claudeye",
-      "source": ".",
+      "source": "./",
       "description": "Analyze your Claude Code sessions and surface context-waste patterns.",
       "category": "analysis"
     }
