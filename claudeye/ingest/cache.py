@@ -29,7 +29,8 @@ from claudeye.domain import (
     ToolUseCall,
     Usage,
 )
-from claudeye.ingest.parser import _parse_timestamp, parse_transcript
+from claudeye.ingest.source import SessionSource
+from claudeye.ingest.timeutil import _parse_timestamp
 
 #: Digest layout version, bumped when the record encoding changes.
 DIGEST_SCHEMA = 4
@@ -184,21 +185,30 @@ def load_or_parse_transcript(
     session_file: SessionFile,
     warnings: list[ParseWarning],
     cache_dir: Path | None = None,
+    *,
+    source: SessionSource | None = None,
 ) -> Iterator[Event]:
     """Yield a transcript's Events through the digest cache.
 
-    Cache hit streams decoded events; miss parses raw and rewrites the
-    digest atomically (tmp file + os.replace) so a crashed or abandoned
-    run never leaves a half-written digest in place. cache_dir=None
-    disables caching entirely (--no-cache).
+    Parsing is delegated to a source adapter (dependency inversion): the
+    cache is agent-agnostic and works for any SessionSource. source is
+    keyword-only and defaults to the Claude Code adapter, so the historical
+    three-argument call stays valid. Cache hit streams decoded events; miss
+    parses raw and rewrites the digest atomically (tmp file + os.replace)
+    so a crashed or abandoned run never leaves a half-written digest in
+    place. cache_dir=None disables caching entirely (--no-cache).
     """
+    if source is None:
+        from claudeye.ingest import resolve_source
+
+        source = resolve_source("claude")
     if cache_dir is None:
-        yield from parse_transcript(session_file, warnings)
+        yield from source.parse(session_file, warnings)
         return
     try:
         stat = session_file.path.stat()
     except OSError:
-        yield from parse_transcript(session_file, warnings)
+        yield from source.parse(session_file, warnings)
         return
 
     digest_file = _digest_path(session_file.path, cache_dir)
@@ -208,7 +218,7 @@ def load_or_parse_transcript(
         return
 
     local_warnings: list[ParseWarning] = []
-    events = list(parse_transcript(session_file, local_warnings))
+    events = list(source.parse(session_file, local_warnings))
     warnings.extend(local_warnings)
     try:
         cache_dir.mkdir(parents=True, exist_ok=True)

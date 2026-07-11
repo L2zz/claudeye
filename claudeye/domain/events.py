@@ -116,6 +116,10 @@ class Event:
       compact_pre_tokens: Context size before compaction when recorded.
       is_compact_summary: True on the user line carrying the compact
         summary text.
+      source: Originating agent adapter that produced this event
+        ("claude", "codex", ...) — the provenance every SessionSource
+        stamps so downstream can segment by agent. Kept last so the
+        public dataclass's positional field order stays stable.
     """
 
     project: str
@@ -138,3 +142,4 @@ class Event:
     compact_boundary: bool = False
     compact_pre_tokens: int | None = None
     is_compact_summary: bool = False
+    source: str = "claude"

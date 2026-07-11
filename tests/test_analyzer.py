@@ -846,8 +846,9 @@ class DigestCacheTest(unittest.TestCase):
     def _run(self, cache_dir):
         warnings = []
         events = []
+        source = cua.resolve_source("claude")
         for sf in cua.iter_session_files(FIXTURES):
-            events.extend(cua.load_or_parse_transcript(sf, warnings, cache_dir))
+            events.extend(cua.load_or_parse_transcript(sf, warnings, cache_dir, source=source))
         result = cua.analyze_events(events)
         summary = cua.build_summary(
             result, warnings, input_root=str(FIXTURES), since=None, project_filter=None
@@ -885,8 +886,9 @@ class DigestCacheTest(unittest.TestCase):
             def run():
                 warnings = []
                 events = []
+                source = cua.resolve_source("claude")
                 for sf in cua.iter_session_files(projects):
-                    events.extend(cua.load_or_parse_transcript(sf, warnings, cache))
+                    events.extend(cua.load_or_parse_transcript(sf, warnings, cache, source=source))
                 return cua.analyze_events(events)
 
             before = run()
@@ -1197,6 +1199,37 @@ class DataDirTest(unittest.TestCase):
             self.assertTrue((data / "INDEX.md").exists())
             self.assertTrue((data / "totals.json").exists())
             self.assertIn("facet files", stdout.getvalue())
+
+
+class SourceAdapterBackCompatTest(unittest.TestCase):
+    """The source-adapter seam must not break the public API surface:
+    Event's positional field order and load_or_parse_transcript's legacy
+    three-argument call are both re-exported and must stay compatible."""
+
+    def test_event_positional_order_preserves_uuid(self):
+        # Event(project, session_id, kind, timestamp, uuid) positionally:
+        # source must stay a keyword-defaulted trailing field, never shift uuid.
+        event = cua.Event("proj", "sess", "assistant", None, "uuid-x")
+        self.assertEqual(event.uuid, "uuid-x")
+        self.assertEqual(event.source, "claude")
+
+    def test_load_or_parse_transcript_legacy_three_arg(self):
+        # The historical (session_file, warnings, cache_dir) call — no source —
+        # must still parse, defaulting to the Claude adapter.
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp)
+            for sf in cua.iter_session_files(FIXTURES):
+                warnings = []
+                legacy = list(cua.load_or_parse_transcript(sf, warnings, cache))
+                explicit = list(
+                    cua.load_or_parse_transcript(sf, [], None, source=cua.resolve_source("claude"))
+                )
+                self.assertEqual(len(legacy), len(explicit))
+
+    def test_resolve_source_unknown_raises(self):
+        self.assertEqual(cua.resolve_source("claude").name, "claude")
+        with self.assertRaises(ValueError):
+            cua.resolve_source("nope")
 
 
 if __name__ == "__main__":

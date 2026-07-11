@@ -44,6 +44,8 @@ from claudeye.domain import (
 )
 from claudeye.ingest import (
     SYNTHETIC_MODEL,
+    ClaudeSource,
+    SessionSource,
     _digest_dir,
     _parse_timestamp,
     _tool_display_name,
@@ -51,6 +53,7 @@ from claudeye.ingest import (
     load_advice_config,
     load_or_parse_transcript,
     parse_transcript,
+    resolve_source,
 )
 from claudeye.render import render_data_dir, render_html, render_json
 
@@ -62,9 +65,11 @@ __all__ = [
     "VERSION",
     "AdviceConfig",
     "AnalysisResult",
+    "ClaudeSource",
     "Event",
     "ParseWarning",
     "SessionFile",
+    "SessionSource",
     "SessionStats",
     "SkillChainStats",
     "ToolResultRecord",
@@ -86,6 +91,7 @@ __all__ = [
     "load_or_parse_transcript",
     "main",
     "parse_transcript",
+    "resolve_source",
     "render_data_dir",
     "render_html",
     "render_json",
