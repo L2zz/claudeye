@@ -90,7 +90,8 @@ claudeye --data-dir facets/       # 에이전트용 facet 파일도 함께
 
 | 옵션 | 의미 |
 |---|---|
-| `--input` | projects 루트 (기본 `~/.claude/projects`) |
+| `--source` | 분석할 에이전트: `claude` · `codex` · `auto`(루트가 있는 모든 에이전트); 기본 `claude` |
+| `--input` | 스캔할 세션 루트 (기본: 소스별 루트 — `~/.claude/projects` 또는 `~/.codex/sessions`); `--source auto` 와는 무시됨 |
 | `--out` | HTML 리포트 경로 (기본 `report.html`) |
 | `--open` | 완료 후 리포트를 브라우저로 열기 |
 | `--json PATH` | 요약 JSON 아티팩트 추가 출력 |

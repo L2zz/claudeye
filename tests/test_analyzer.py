@@ -24,6 +24,7 @@ import claudeye.cli  # noqa: E402
 import claudeye.ingest.cache  # noqa: E402
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "projects"
+CODEX_FIXTURES = Path(__file__).resolve().parent / "fixtures" / "codex" / "sessions"
 WEBAPP_KEY = "-Users-tester-webapp/11111111-1111-4111-8111-111111111111"
 API_KEY = "-Users-tester-api/22222222-2222-4222-8222-222222222222"
 FORK_KEY = "-Users-tester-webapp/33333333-3333-4333-8333-333333333333"
@@ -1230,6 +1231,138 @@ class SourceAdapterBackCompatTest(unittest.TestCase):
         self.assertEqual(cua.resolve_source("claude").name, "claude")
         with self.assertRaises(ValueError):
             cua.resolve_source("nope")
+
+
+def _codex_events():
+    src = cua.resolve_source("codex")
+    warnings = []
+    events = []
+    for sf in src.iter_session_files(CODEX_FIXTURES):
+        events.extend(src.parse(sf, warnings))
+    return events, warnings
+
+
+class CodexSourceTest(unittest.TestCase):
+    """CodexSource over a synthetic rollout fixture: discovery/dedup, envelope
+    parsing, cumulative-token mapping, and forward-compat tolerance."""
+
+    def _summary(self, cache_dir=None):
+        src = cua.resolve_source("codex")
+        warnings = []
+        events = []
+        for sf in src.iter_session_files(CODEX_FIXTURES):
+            events.extend(cua.load_or_parse_transcript(sf, warnings, cache_dir, source=src))
+        summary = cua.build_summary(
+            cua.analyze_events(events),
+            warnings,
+            input_root=str(CODEX_FIXTURES),
+            since=None,
+            project_filter=None,
+        )
+        return summary, warnings
+
+    def test_registered(self):
+        self.assertEqual(cua.resolve_source("codex").name, "codex")
+
+    def test_detect_finds_codex_root(self):
+        src = cua.resolve_source("codex")
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            self.assertIsNone(src.detect(home))
+            (home / ".codex" / "sessions").mkdir(parents=True)
+            self.assertEqual(src.detect(home), home / ".codex" / "sessions")
+
+    def test_discovery_dedups_archived(self):
+        src = cua.resolve_source("codex")
+        files = list(src.iter_session_files(CODEX_FIXTURES))
+        # the archived same-stem copy is skipped; the active copy wins
+        self.assertEqual(len(files), 1)
+        # project is fixed at discovery from the session_meta cwd
+        self.assertEqual(files[0].project, "-Users-tester-webapp")
+
+    def test_events_tagged_codex(self):
+        events, _ = _codex_events()
+        self.assertTrue(events)
+        self.assertTrue(all(e.source == "codex" for e in events))
+
+    def test_totals(self):
+        summary, warnings = self._summary()
+        t = summary["totals"]
+        self.assertEqual(t["sessions"], 1)
+        self.assertEqual(t["projects"], 1)
+        # three counted turns: 120 + 230 + 50; the repeated token_count that
+        # re-reports an unchanged cumulative contributes nothing, and the
+        # archived duplicate's 1998 is deduped out at discovery
+        self.assertEqual(t["requests"], 3)
+        self.assertEqual(t["total_tokens"], 400)
+        # (100-40) + (200-150) + 50 — the breakdown-less import event's
+        # measured total is attributed to plain input
+        self.assertEqual(t["input_tokens"], 160)
+        self.assertEqual(t["output_tokens"], 35)  # (20-5) + (30-10)
+        self.assertEqual(t["cache_read_tokens"], 190)  # 40 + 150
+        self.assertEqual(t["cache_creation_tokens"], 0)
+        self.assertEqual(t["tool_calls"], 2)  # shell + web_search
+        self.assertEqual(t["compactions"], 1)
+
+    def test_reasoning_tokens_mapped(self):
+        events, _ = _codex_events()
+        reasoning = sum(e.usage.reasoning_tokens for e in events if e.usage)
+        self.assertEqual(reasoning, 15)  # 5 + 10, peeled out of output
+        # total reconciles: the four split counters plus reasoning == total
+        totals = self._summary()[0]["totals"]
+        self.assertEqual(
+            totals["input_tokens"]
+            + totals["output_tokens"]
+            + totals["cache_read_tokens"]
+            + totals["cache_creation_tokens"]
+            + reasoning,
+            totals["total_tokens"],
+        )
+
+    def test_tool_result_attributed(self):
+        tools = {r["name"]: r for r in self._summary()[0]["by_tool"]}
+        self.assertIn("shell", tools)
+        self.assertIn("web_search", tools)
+        self.assertEqual(tools["shell"]["result_bytes"], len(b"file1\nfile2"))
+
+    def test_multi_root_input_root_cleaned_per_root(self):
+        # --source auto passes several roots; each must be home-relativized
+        # independently (a joined string would leave later roots absolute)
+        home = str(Path.home())
+        summary = cua.build_summary(
+            cua.analyze_events([]),
+            [],
+            input_root=[home + "/.claude/projects", home + "/.codex/sessions"],
+            since=None,
+            project_filter=None,
+        )
+        self.assertEqual(
+            summary["meta"]["input_root"],
+            "~/.claude/projects, ~/.codex/sessions",
+        )
+
+    def test_unknown_records_tolerated(self):
+        _, warnings = self._summary()
+        # world_state (unknown record) and token_count info:null must not warn;
+        # only the deliberately invalid-JSON line does.
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("invalid JSON", warnings[0].reason)
+
+    def test_warm_cache_preserves_project(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp)
+            cold, _ = self._summary(cache)
+            self.assertTrue(list(cache.glob("*.jsonl.gz")))
+            warm, _ = self._summary(cache)
+            cold["meta"].pop("generated_at")
+            warm["meta"].pop("generated_at")
+            self.assertEqual(cold, warm)
+            # the cwd-derived project must survive the cache round-trip,
+            # not collapse to the "codex" placeholder
+            self.assertEqual(warm["totals"]["projects"], 1)
+            # the row displays the real cwd (not the "codex" placeholder),
+            # proving the cwd-derived project survived the cache round-trip
+            self.assertEqual(warm["by_project"][0]["project"], "/Users/tester/webapp")
 
 
 if __name__ == "__main__":

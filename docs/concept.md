@@ -1,9 +1,12 @@
 # Concept
 
-claudeye is a local, closed-loop analyzer of Claude Code transcripts. It reads
-the raw JSONL under `~/.claude/projects`, finds context-waste patterns, and
-emits a self-contained HTML report plus a summary JSON. This document is the
-source of truth for *why* it exists and *what lines it will not cross*.
+claudeye is a local, closed-loop analyzer of coding-agent transcripts — Claude
+Code (`~/.claude/projects`) and OpenAI Codex (`~/.codex/sessions`), selected with
+`--source`. Each agent has a lenient adapter behind one `SessionSource` port that
+normalizes its on-disk format onto a shared Event model; the rest of the pipeline
+is agent-agnostic. It finds context-waste patterns and emits a self-contained
+HTML report plus a summary JSON. This document is the source of truth for *why*
+it exists and *what lines it will not cross*.
 
 ## Why it exists
 

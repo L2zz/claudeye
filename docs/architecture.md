@@ -9,17 +9,20 @@ claudeye/
   __main__.py    python -m claudeye
   cli.py         argument parsing, run_analyze, main (wiring + user I/O)
   domain/        usage · events · stats · advice     (frozen value objects, read models)
-  ingest/        parser · cache · settings           (filesystem adapter)
+  ingest/        source port · claude/ · codex/ · cache · settings  (source adapters)
   analyze/       aggregate · advice · summary         (pure aggregation)
   render/        template · html                      (summary dict -> artifacts)
 ```
 
 ```mermaid
 flowchart LR
-    JSONL["~/.claude/projects<br>session · subagent JSONL"]
+    CJSONL["~/.claude/projects<br>session · subagent JSONL"]
+    XJSONL["~/.codex/sessions<br>rollout JSONL"]
     subgraph INGEST["ingest"]
-        DISC["iter_session_files"]
-        PARSE["parse_transcript<br>lenient parser"]
+        subgraph PORT["SessionSource port"]
+            CLAUDE["ClaudeSource<br>lenient parser"]
+            CODEX["CodexSource<br>lenient parser"]
+        end
         CACHE["digest cache"]
     end
     subgraph ANALYZE["analyze"]
@@ -30,18 +33,19 @@ flowchart LR
         HTML["render_html"]
         RJSON["render_json"]
     end
-    CLI["cli<br>presets · mtime prefilter"]
+    CLI["cli<br>--source · presets · mtime prefilter"]
     REPORT["report.html"]
     SUMJSON["summary.json"]
 
-    JSONL --> DISC --> PARSE --> CACHE
+    CJSONL --> CLAUDE --> CACHE
+    XJSONL --> CODEX --> CACHE
     CACHE -->|Event stream| AGG -->|AnalysisResult| SUM
     SUM --> HTML --> REPORT
     SUM --> RJSON --> SUMJSON
-    CLI -.->|wires| DISC
+    CLI -.->|resolves source| PORT
 
     classDef external fill:#e8f4fd,stroke:#7ab8e8,color:#2c6e9e
-    class JSONL,REPORT,SUMJSON external
+    class CJSONL,XJSONL,REPORT,SUMJSON external
 ```
 
 ## Layers
@@ -49,9 +53,16 @@ flowchart LR
 - **domain** — pure, dependency-free. Frozen value objects (`Usage`,
   `AdviceConfig`) and mutable read-model accumulators (`SessionStats`,
   `SkillChainStats`, `AnalysisResult`). Nothing here imports the other layers.
-- **ingest** — the only filesystem adapter. Discovery (`iter_session_files`),
-  lenient parsing (`parse_transcript`, never raising per line — problems become
-  `ParseWarning`s), the extraction digest cache, and personal-config loading.
+- **ingest** — the only filesystem layer, organized as source adapters behind
+  the `SessionSource` port (`name` / `detect` / `iter_session_files` / `parse`).
+  `ingest/claude/` reads Claude Code project transcripts; `ingest/codex/` reads
+  OpenAI Codex rollouts, collapsing its dual stream (`response_item` is
+  canonical, `event_msg` is mined only for token counts) and reconstructing
+  per-turn usage from Codex's periodic token events. Each adapter normalizes
+  its format onto domain Events — stamping `Event.source` and a corpus-stable
+  uuid — so everything downstream is agent-agnostic. Parsing is lenient (never
+  raising per line — problems become `ParseWarning`s); the extraction digest
+  cache and personal-config loading live here too.
 - **analyze** — pure, no I/O. `analyze_events` folds the Event stream into read
   models; `build_summary` freezes them into the summary dict, running the advice
   rules along the way.
@@ -79,6 +90,11 @@ one global typed seen-set: `("line", uuid)` counts each physical line once;
 `("msg", message_id)` deduplicates streamed usage; `("use"/"res", tool_use_id)`
 guards repeated tool blocks. Without this, per-session counting inflated tokens
 ~8x and tool calls ~6x on the real corpus.
+
+Identity is an adapter responsibility: Claude lines carry their own uuid, while
+the Codex adapter synthesizes a corpus-stable one (`session id + line number`)
+and dedups `sessions/` vs `archived_sessions/` copies at discovery — so the
+seen-set logic above stays agent-agnostic.
 
 ## Digest cache
 

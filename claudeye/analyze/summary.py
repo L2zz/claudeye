@@ -9,6 +9,7 @@ relativized and redactable; no other transcript text is carried over.
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Sequence
 from dataclasses import fields
 from datetime import datetime, timezone
 from pathlib import Path
@@ -66,7 +67,7 @@ def build_summary(
     result: AnalysisResult,
     parse_warnings: list[ParseWarning],
     *,
-    input_root: str,
+    input_root: str | Sequence[str],
     since: datetime | None,
     project_filter: str | None,
     redact_paths: bool = False,
@@ -82,7 +83,10 @@ def build_summary(
     notes, warning count), totals, by_tool, by_day, sessions, dup_reads,
     parse_warnings (capped). File paths are home-relativized always and
     redacted to hashed-dir/basename when redact_paths is set; no other
-    transcript text is carried over.
+    transcript text is carried over. input_root may be several roots
+    (--source auto); each is cleaned independently before joining so
+    redaction cannot miss a root buried mid-string, and meta.input_root
+    stays one display string either way.
     """
     cfg = advice_config or AdviceConfig()
     home = str(Path.home())
@@ -370,7 +374,8 @@ def build_summary(
     ]
 
     stamp = generated_at or datetime.now(timezone.utc)
-    input_display = clean_path(input_root)
+    roots = [input_root] if isinstance(input_root, str) else list(input_root)
+    input_display = ", ".join(clean_path(root) for root in roots)
     return {
         "meta": {
             "tool": "claudeye",
