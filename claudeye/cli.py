@@ -287,7 +287,7 @@ def run_analyze(args: argparse.Namespace) -> int:
     summary = build_summary(
         result,
         warnings,
-        input_root=", ".join(str(root) for _, root in source_roots),
+        input_root=[str(root) for _, root in source_roots],
         since=since,
         project_filter=args.project,
         redact_paths=args.redact_paths,

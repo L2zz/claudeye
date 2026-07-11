@@ -1290,10 +1290,14 @@ class CodexSourceTest(unittest.TestCase):
         t = summary["totals"]
         self.assertEqual(t["sessions"], 1)
         self.assertEqual(t["projects"], 1)
-        self.assertEqual(t["requests"], 2)  # two token_count turns
-        # 120 + 230; the archived duplicate's 1998 is deduped out
-        self.assertEqual(t["total_tokens"], 350)
-        self.assertEqual(t["input_tokens"], 110)  # (100-40) + (200-150)
+        # three counted turns: 120 + 230 + 50; the repeated token_count that
+        # re-reports an unchanged cumulative contributes nothing, and the
+        # archived duplicate's 1998 is deduped out at discovery
+        self.assertEqual(t["requests"], 3)
+        self.assertEqual(t["total_tokens"], 400)
+        # (100-40) + (200-150) + 50 — the breakdown-less import event's
+        # measured total is attributed to plain input
+        self.assertEqual(t["input_tokens"], 160)
         self.assertEqual(t["output_tokens"], 35)  # (20-5) + (30-10)
         self.assertEqual(t["cache_read_tokens"], 190)  # 40 + 150
         self.assertEqual(t["cache_creation_tokens"], 0)
@@ -1320,6 +1324,22 @@ class CodexSourceTest(unittest.TestCase):
         self.assertIn("shell", tools)
         self.assertIn("web_search", tools)
         self.assertEqual(tools["shell"]["result_bytes"], len(b"file1\nfile2"))
+
+    def test_multi_root_input_root_cleaned_per_root(self):
+        # --source auto passes several roots; each must be home-relativized
+        # independently (a joined string would leave later roots absolute)
+        home = str(Path.home())
+        summary = cua.build_summary(
+            cua.analyze_events([]),
+            [],
+            input_root=[home + "/.claude/projects", home + "/.codex/sessions"],
+            since=None,
+            project_filter=None,
+        )
+        self.assertEqual(
+            summary["meta"]["input_root"],
+            "~/.claude/projects, ~/.codex/sessions",
+        )
 
     def test_unknown_records_tolerated(self):
         _, warnings = self._summary()

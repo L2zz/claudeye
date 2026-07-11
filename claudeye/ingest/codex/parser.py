@@ -48,11 +48,13 @@ from claudeye.ingest.timeutil import _parse_timestamp
 CODEX_SOURCE = "codex"
 
 #: Cumulative token-usage fields carried in a token_count event.
+#: total_tokens rides along for the breakdown-less fallback below.
 _TOKEN_FIELDS = (
     "input_tokens",
     "cached_input_tokens",
     "output_tokens",
     "reasoning_output_tokens",
+    "total_tokens",
 )
 
 
@@ -62,9 +64,10 @@ def iter_session_files(root: Path, project_filter: str | None = None) -> Iterato
     Yields active transcripts under root (recursively, the date tree) and
     then archived copies under the sibling ``archived_sessions/``; a rollout
     present in both is yielded once, the active copy winning (archived
-    duplicates are skipped by filename). Does not read file contents unless
-    project_filter is set, in which case each file's session_meta cwd is
-    peeked to honor the filter.
+    duplicates are skipped by filename). Each file's leading session_meta is
+    peeked (bounded — a few lines, allowed by the port contract) because a
+    rollout's project identity lives inside the file: fixing
+    SessionFile.project here is what lets the digest cache round-trip it.
 
     Args:
       root: Codex sessions directory, typically ~/.codex/sessions.
@@ -231,25 +234,28 @@ def _turn_usage(
 ) -> tuple[Usage | None, dict[str, Any] | None]:
     """Return one turn's Usage from a token_count info block, plus new prev.
 
-    Prefers last_token_usage — Codex's own per-turn vector, always
-    non-negative and field-consistent, and (verified on a real corpus)
-    summing to within ~1% of the session's final cumulative total. Falls
-    back to the delta of the cumulative total_token_usage only when no
-    per-turn vector is present, clamping per-field deltas at 0 so a
-    mid-session reset never yields a negative counter. prev_total tracks the
-    cumulative vector for that fallback. Returns (None, prev) when the block
-    carries no usable usage.
+    Driven by the cumulative total_token_usage: each event contributes the
+    per-field delta against the previous cumulative vector, so deltas
+    telescope to the session's final total and a repeated token_count that
+    re-reports an unchanged cumulative (Codex emits these around tool
+    outputs) contributes nothing instead of being recounted. Per-field
+    deltas are clamped at 0 so a mid-session reset never yields a negative
+    counter. last_token_usage alone is only trusted when no cumulative
+    vector is present. Returns (None, prev) when the block carries no
+    usable usage.
     """
     total = info.get("total_token_usage")
     total = total if isinstance(total, dict) else None
-    last = info.get("last_token_usage")
-    if isinstance(last, dict):
-        return _usage_from_fields(last), (total if total is not None else prev_total)
     if total is not None:
         if prev_total is None:
             return _usage_from_fields(total), total
+        if total == prev_total:
+            return None, prev_total  # repeated progress event — already counted
         delta = {k: max(_int(total.get(k)) - _int(prev_total.get(k)), 0) for k in _TOKEN_FIELDS}
         return _usage_from_fields(delta), total
+    last = info.get("last_token_usage")
+    if isinstance(last, dict):
+        return _usage_from_fields(last), prev_total
     return None, prev_total
 
 
@@ -260,11 +266,18 @@ def _usage_from_fields(u: dict[str, Any]) -> Usage:
     output (verified against real data), so cached and reasoning are peeled
     out into their own counters and the remainders kept as plain input and
     output. cache_creation has no Codex equivalent and stays 0.
+
+    Some rollouts (imported sessions) report an empty field breakdown with
+    only total_tokens set; the measured total is then attributed to plain
+    input rather than dropped, so corpus totals stay exact even though the
+    split is unknown for those sessions.
     """
     inp = _int(u.get("input_tokens"))
     cached = _int(u.get("cached_input_tokens"))
     out = _int(u.get("output_tokens"))
     reasoning = _int(u.get("reasoning_output_tokens"))
+    if inp == 0 and out == 0 and cached == 0 and reasoning == 0:
+        return Usage(input_tokens=_int(u.get("total_tokens")))
     return Usage(
         input_tokens=max(inp - cached, 0),
         output_tokens=max(out - reasoning, 0),
