@@ -2,9 +2,12 @@
 
 **English** · [한국어](README.ko.md)
 
-Look deep into Claude Code with claudeye. It reads Claude's local session records
-and shows, in a single report, where your context is being wasted. It runs
-locally as a static script and never sends your personal data out.
+Look deep into Claude Code with claudeye. It reads Claude Code and Codex session
+records and shows, in a single report, where your context is being wasted. It
+runs locally as a static script and never sends your personal data out.
+
+For self-improving harness setups, claudeye is the measurement layer: it turns
+transcripts into measured, agent-readable facts your reflection loop can act on.
 
 **Contents**
 
@@ -30,9 +33,17 @@ As sessions, skills, and subagents pile up, it gets hard to feel where tokens
 leak, which files get re-read, and which skills are heavy. claudeye shows what is
 polluting your context on a single page.
 
-### Data source for harness improvement
+### The measurement half of a self-improving loop
 
-claudeye's output is agent-readable, so it can feed the harness's own evolution.
+claudeye's output is agent-readable, so it can feed the harness's own evolution
+as an instrument → reflection → edit loop: claudeye measures, a reflection
+routine reads the `--data-dir` facets, and the edits land in skills, rules, and
+CLAUDE.md. Correction-capture tools record what you corrected in dialogue — the
+qualitative half; claudeye measures what the transcripts actually show — the
+quantitative half of the same loop. (This is the loop
+[harness engineering](https://lilianweng.github.io/posts/2026-07-04-harness/)
+asks for: measurable, objective metrics, with the file system as memory.)
+
 For example, a weekly reflection skill reads the `--data-dir` output and turns
 recurring waste into rule and skill improvements:
 
