@@ -246,6 +246,7 @@ UI_STRINGS: dict[str, dict[str, str]] = {
         "cat and Grep rereads are not observed.",
         "confnote_cache_efficiency": "Measured — cache read / (input + cache read) "
         "for each session.",
+        "confnote_compactions": "Measured — compact-boundary events counted per session.",
         "confnote_fork_attribution": "Inferred — a fork reports only activity that "
         "happened in it; inherited history stays with the first-discovered session.",
         "confnote_subagent_types": "Measured — sidechain tokens join to dispatch type "
@@ -259,10 +260,13 @@ UI_STRINGS: dict[str, dict[str, str]] = {
         "confname_tool_result_bytes": "Tool-result bytes",
         "confname_dup_reads": "Duplicate reads",
         "confname_cache_efficiency": "Cache efficiency",
+        "confname_compactions": "Compactions",
         "confname_fork_attribution": "Fork attribution",
         "confname_subagent_types": "Subagent types",
         "confname_skill_chains": "Skill chains",
         "confname_per_tool_tokens": "Per-tool tokens",
+        "confkind_measured": "measured",
+        "confkind_inferred": "inferred",
         "flag_dup-read": "duplicate Read",
         "flag_low-cache": "low cache",
         "flag_compacted": "compacted",
@@ -505,6 +509,7 @@ UI_STRINGS: dict[str, dict[str, str]] = {
         "confnote_dup_reads": "추정값 — Read의 file path 반복만 포함합니다. cat과 "
         "Grep을 통한 재읽기는 관측하지 못합니다.",
         "confnote_cache_efficiency": "측정값 — 세션별 cache read / (input + cache read)입니다.",
+        "confnote_compactions": "측정값 — 세션별 compact boundary 이벤트 수입니다.",
         "confnote_fork_attribution": "추정값 — fork에서는 실제로 발생한 활동만 "
         "보고하며, 상속된 이력은 먼저 발견한 세션에 남습니다.",
         "confnote_subagent_types": "측정값 — toolUseResult.agentId로 sidechain tokens와 "
@@ -518,10 +523,13 @@ UI_STRINGS: dict[str, dict[str, str]] = {
         "confname_tool_result_bytes": "도구 결과 bytes",
         "confname_dup_reads": "중복 읽기",
         "confname_cache_efficiency": "Cache 효율",
+        "confname_compactions": "Compaction",
         "confname_fork_attribution": "Fork 귀속",
         "confname_subagent_types": "서브에이전트 유형",
         "confname_skill_chains": "스킬 체인",
         "confname_per_tool_tokens": "도구별 tokens",
+        "confkind_measured": "측정값",
+        "confkind_inferred": "추정값",
         "flag_dup-read": "중복 읽기",
         "flag_low-cache": "낮은 cache",
         "flag_compacted": "compaction 발생",

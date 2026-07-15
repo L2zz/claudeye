@@ -173,7 +173,8 @@ def _build_advice(
             advice.append(
                 {
                     "rule": "dup-read-hotspot",
-                    "confidence": "inferred signal, inferred remedy",
+                    "confidence": "inferred",
+                    "confidence_refs": [{"metric": "dup_reads", "kind": "inferred"}],
                     "message": (
                         f"{row['path']} was re-read {row['reads']}x across "
                         f"{row['sessions']} sessions — consider summarizing it into "
@@ -196,7 +197,8 @@ def _build_advice(
         advice.append(
             {
                 "rule": "compaction-pressure",
-                "confidence": "measured signal, inferred remedy",
+                "confidence": "measured",
+                "confidence_refs": [{"metric": "compactions", "kind": "measured"}],
                 "message": (
                     f"{len(compacted)} session(s) compacted "
                     f"{cfg.compactions_min}+ times (worst: "
@@ -235,7 +237,8 @@ def _build_advice(
         advice.append(
             {
                 "rule": "skill-heavy-turns",
-                "confidence": "measured signal, inferred remedy",
+                "confidence": "measured",
+                "confidence_refs": [{"metric": "skill_chains", "kind": "measured"}],
                 "message": (
                     f"skill {row['skill']} averages {' · '.join(signals)} over "
                     f"{row['requests']} turns — consider splitting the skill or "
@@ -260,7 +263,8 @@ def _build_advice(
         advice.append(
             {
                 "rule": "low-cache-pattern",
-                "confidence": "inferred signal, inferred remedy",
+                "confidence": "measured",
+                "confidence_refs": [{"metric": "cache_efficiency", "kind": "measured"}],
                 "message": (
                     f"{round(100 * len(low) / len(rated))}% of sessions "
                     f"({len(low)}/{len(rated)}) ran below "
@@ -277,7 +281,8 @@ def _build_advice(
         advice.append(
             {
                 "rule": "huge-tool-result",
-                "confidence": "measured signal, inferred remedy",
+                "confidence": "measured",
+                "confidence_refs": [{"metric": "tool_result_bytes", "kind": "measured"}],
                 "message": (
                     f"a single {row['name']} result of "
                     f"{row['max_result_bytes'] // 1024} KB re-entered the context — "
@@ -342,15 +347,4 @@ def _attach_korean_copy(item: dict[str, Any], cfg: AdviceConfig) -> None:
             "모델 컨텍스트로 들어왔습니다. offset/limit, head/tail 또는 더 좁은 "
             "질의를 검토하세요."
         )
-    confidence_tags = [tag.strip() for tag in item["confidence"].split(",")]
-    translated_tags = [
-        {
-            "measured signal": "측정 신호",
-            "inferred signal": "추정 신호",
-            "inferred remedy": "추정 처방",
-        }.get(tag, tag)
-        for tag in confidence_tags
-    ]
     item["message_i18n"] = {"ko": message}
-    item["confidence_tags"] = confidence_tags
-    item["confidence_tags_i18n"] = {"ko": translated_tags}

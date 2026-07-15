@@ -395,6 +395,7 @@ class SummaryAndRenderTest(unittest.TestCase):
             "tool_result_bytes",
             "dup_reads",
             "cache_efficiency",
+            "compactions",
             "fork_attribution",
             "subagent_types",
             "skill_chains",
@@ -780,8 +781,8 @@ class AdviceRulesTest(unittest.TestCase):
         for item in advice:
             self.assertIn(item["rule"], catalog)
             self.assertIn("ko", item["message_i18n"])
-            self.assertIn("ko", item["confidence_tags_i18n"])
-            self.assertEqual(len(item["confidence_tags"]), 2)
+            self.assertEqual(len(item["confidence_refs"]), 1)
+            self.assertIn(item["confidence_refs"][0]["kind"], {"measured", "inferred"})
 
     def test_levels_assigned_and_escalated(self):
         # skill at 2x threshold escalates to critical; a modest one stays warn.
