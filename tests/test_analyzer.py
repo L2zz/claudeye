@@ -382,6 +382,7 @@ class SummaryAndRenderTest(unittest.TestCase):
         self.assertIn("const skillWhatifState = {", html)
         self.assertIn("const sessionTableState = {", html)
         self.assertNotIn('let sortKey = "total_tokens"', html)
+        self.assertEqual(html.count(".advice-item .conf-tag {"), 1)
 
     def test_both_languages_cover_the_same_ui_keys(self):
         from claudeye.render.strings import UI_STRINGS

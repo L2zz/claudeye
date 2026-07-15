@@ -187,7 +187,6 @@ button.show-toggle:hover { color:var(--text); border-color:var(--accent); }
   border-radius:0 8px 8px 0; padding:8px 14px; margin-top:6px; font-size:13px; }
 .advice-item .rule { color:var(--warn); font-size:10.5px; text-transform:uppercase;
   letter-spacing:.05em; margin-right:8px; }
-.advice-item .conf-tag { color:var(--muted); font-size:10.5px; margin-left:8px; }
 #daily-chart svg { display:block; margin:0; max-width:100%; }
 #daily-chart svg text { font-variant-numeric:tabular-nums; }
 #daily-chart g.day:hover rect { stroke:rgba(255,255,255,.4); stroke-width:1; }
