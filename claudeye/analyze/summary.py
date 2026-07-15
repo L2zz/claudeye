@@ -31,6 +31,7 @@ CONFIDENCE_NOTES: dict[str, str] = {
     "tool_result_bytes": "measured — serialized tool_result payload re-entering context",
     "dup_reads": "inferred — Read tool file_path repeats only; cat/Grep re-reads not covered",
     "cache_efficiency": "measured — cache_read / (input + cache_read) per session",
+    "compactions": "measured — compact_boundary events counted per session",
     "fork_attribution": "inferred — a forked session reports only activity that "
     "happened in it; inherited history stays with the first-discovered sharing session",
     "subagent_types": "measured — sidechain tokens joined to dispatch subagent_type "

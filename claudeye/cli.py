@@ -249,7 +249,7 @@ def run_analyze(args: argparse.Namespace) -> int:
 
     Orchestrates ingest -> analyze -> render, writes the HTML report and
     optional JSON artifact, and prints a one-paragraph closing summary
-    (sessions, warnings, top pollution source) to stdout.
+    (sessions, warnings, top tool-result source) to stdout.
     """
     started = time.monotonic()
     try:
@@ -313,7 +313,7 @@ def run_analyze(args: argparse.Namespace) -> int:
     print(
         f"analyzed {totals['sessions']} sessions across {totals['projects']} projects "
         f"in {elapsed:.1f}s — {totals['total_tokens']:,} tokens, "
-        f"top pollution source: {top_tool}, "
+        f"top tool-result source: {top_tool}, "
         f"wasted re-reads: {totals['wasted_reads']}, "
         f"parse warnings: {len(warnings)}"
     )

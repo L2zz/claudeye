@@ -110,6 +110,9 @@ tr:hover td { background:rgba(86,180,233,.05); }
 .advice-item.linked { cursor:pointer; }
 .advice-item.linked:hover { border-left-color:var(--accent); }
 .advice-item .rule-def { color:var(--muted); font-size:11px; margin-top:4px; }
+.advice-item .conf-tag { display:inline-block; margin-left:8px; padding:1px 7px;
+  border:1px solid var(--border); border-radius:9px; color:var(--muted);
+  font-size:9.5px; line-height:1.35; vertical-align:1px; }
 .advice-controls { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:10px; }
 .advice-controls .rule-toggle { background:transparent; color:var(--text);
   border:1px solid var(--border); border-radius:12px; padding:2px 10px; cursor:pointer;
@@ -184,7 +187,6 @@ button.show-toggle:hover { color:var(--text); border-color:var(--accent); }
   border-radius:0 8px 8px 0; padding:8px 14px; margin-top:6px; font-size:13px; }
 .advice-item .rule { color:var(--warn); font-size:10.5px; text-transform:uppercase;
   letter-spacing:.05em; margin-right:8px; }
-.advice-item .conf-tag { color:var(--muted); font-size:10.5px; margin-left:8px; }
 #daily-chart svg { display:block; margin:0; max-width:100%; }
 #daily-chart svg text { font-variant-numeric:tabular-nums; }
 #daily-chart g.day:hover rect { stroke:rgba(255,255,255,.4); stroke-width:1; }
@@ -221,7 +223,7 @@ footer { color:var(--muted); font-size:11px; margin-top:24px; }
 <header>
   <div class="brand">
     <h1>claudeye</h1>
-    <div class="brand-sub">(C_C\) Claude Code usage-analyzer</div>
+    <div class="brand-sub" data-i18n="brand_sub">measurement layer for a self-improving harness</div>
   </div>
   <div class="lang-toggle" id="lang-toggle"></div>
   <div class="meta" id="meta-line"></div>
@@ -252,7 +254,7 @@ footer { color:var(--muted); font-size:11px; margin-top:24px; }
 </section>
 
 <section>
-  <h2 class="foldable" data-body="body-tools"><span data-i18n="sec_tools">Tool pollution ranking</span><span class="conf" id="conf-tools"></span></h2>
+  <h2 class="foldable" data-body="body-tools"><span data-i18n="sec_tools">Tool-result sizes</span><span class="conf" id="conf-tools"></span></h2>
   <div class="sec-body" id="body-tools">
     <div class="controls"><span data-i18n="ctl_sortby">sort by</span>
       <button id="btn-bytes" class="active" data-i18n="ctl_resultsize">result size</button>
@@ -350,7 +352,7 @@ const TOOL_LIMIT = 10, SESSION_LIMIT = 15, DUP_LIMIT = 10, DAY_LIMIT = 14;
    Extensible: add a language by adding one dictionary plus a toggle entry. */
 const STRINGS = __UI_STRINGS__;
 let lang = STRINGS[(S.meta && S.meta.lang) || "en"] ? S.meta.lang : "en";
-const T = STRINGS[lang];
+let T = STRINGS[lang];
 function applyStatic() {
   document.querySelectorAll("[data-i18n]").forEach(node => {
     const v = STRINGS[lang][node.dataset.i18n];
@@ -363,7 +365,13 @@ function renderLangToggle() {
   wrap.textContent = "";
   [["en", "EN"], ["ko", "한국어"]].forEach(([code, label]) => {
     const btn = el("button", "lang-btn" + (lang === code ? " active" : ""), label);
-    btn.addEventListener("click", () => { lang = code; applyStatic(); renderLangToggle(); });
+    btn.addEventListener("click", () => {
+      lang = code;
+      T = STRINGS[lang];
+      applyStatic();
+      renderLangToggle();
+      renderLocalized();
+    });
     wrap.appendChild(btn);
   });
 }
@@ -376,6 +384,11 @@ renderLangToggle();
 const advice = S.advice || [];
 const adviceRules = S.advice_rules || {};
 const adviceTh = S.advice_thresholds || {};
+const skillWhatifState = {
+  turns: adviceTh.skill_min_turns,
+  spend: adviceTh.skill_new_spend_per_turn,
+  critical: adviceTh.skill_critical_new_spend_per_turn,
+};
 const LEVEL_ORDER = ["info", "warn", "critical"];
 const hiddenRules = new Set();
 let minLevel = "info"; // like a log level: show items at this severity or above
@@ -417,7 +430,7 @@ function showToggle(total, limit, expanded, noun, onClick) {
 }
 
 /* header */
-(function renderMeta() {
+function renderMeta() {
   const m = S.meta;
   const parts = [
     T.meta_generated + m.generated_at,
@@ -436,14 +449,15 @@ function showToggle(total, limit, expanded, noun, onClick) {
   document.getElementById("conf-sessions").textContent = T.conf_sessions;
   document.getElementById("conf-dup").textContent = T.conf_dup;
   const notes = document.getElementById("conf-notes");
+  notes.textContent = "";
   Object.entries(m.confidence).forEach(([key, note]) => {
-    notes.appendChild(el("dt", null, key));
-    notes.appendChild(el("dd", null, note));
+    notes.appendChild(el("dt", null, T["confname_" + key] || key));
+    notes.appendChild(el("dd", null, T["confnote_" + key] || note));
   });
-})();
+}
 
 /* totals cards — volume vs waste-signal groups */
-(function renderCards() {
+function renderCards() {
   const t = S.totals;
   const newTokens = t.input_tokens + t.output_tokens + t.cache_creation_tokens;
   const cacheShare = t.total_tokens > 0
@@ -502,7 +516,9 @@ function showToggle(total, limit, expanded, noun, onClick) {
       t.sessions + " " + T.unit_sessions + " · "
       + fmt(t.requests + t.subagent_requests) + " " + T.unit_req),
     card(T.card_new_tokens, fmt(newTokens), T.card_new_tokens_sub),
-    card(T.card_cache_reuse, fmt(t.cache_read_tokens), cacheShare + " " + T.card_cache_reuse_sub),
+    card(T.card_cache_reuse, fmt(t.cache_read_tokens),
+      lang === "ko" ? T.card_cache_reuse_sub + " " + cacheShare
+        : cacheShare + " " + T.card_cache_reuse_sub),
     card(T.card_tool_activity, fmt(t.tool_calls), T.card_tool_activity_sub),
     peakDay ? card(T.card_peak_day, peakDay.slice(5), fmt(peakTotal) + " " + T.unit_tokens) : null,
     topModel ? card(T.card_model_mix, topModel[0].replace(/^claude-/, ""),
@@ -529,9 +545,10 @@ function showToggle(total, limit, expanded, noun, onClick) {
   }
 
   const wrap = document.getElementById("totals-cards");
+  wrap.textContent = "";
   wrap.appendChild(group(T.group_volume, volume));
   wrap.appendChild(group(T.group_waste, waste));
-})();
+}
 
 /* 2 — tool bars */
 let toolsExpanded = false;
@@ -614,11 +631,22 @@ function renderAdvice() {
     const level = lvlOf(item);
     const div = el("div", "advice-item level-" + level + (item.target ? " linked" : ""));
     div.appendChild(el("span", "level-tag " + level, level));
-    div.appendChild(el("span", "rule", item.rule));
-    div.appendChild(document.createTextNode(item.message));
-    div.appendChild(el("span", "conf-tag", item.confidence));
     const rule = adviceRules[item.rule];
-    if (rule) div.appendChild(el("div", "rule-def", rule.definition));
+    const ruleTitle = rule && rule.title_i18n && rule.title_i18n[lang]
+      ? rule.title_i18n[lang] : (rule ? rule.title : item.rule);
+    div.appendChild(el("span", "rule", ruleTitle));
+    const message = item.message_i18n && item.message_i18n[lang]
+      ? item.message_i18n[lang] : item.message;
+    div.appendChild(document.createTextNode(message));
+    (item.confidence_refs || []).forEach(ref => {
+      const metric = T["confname_" + ref.metric] || ref.metric;
+      div.appendChild(el("span", "conf-tag", metric));
+    });
+    if (rule) {
+      const definition = rule.definition_i18n && rule.definition_i18n[lang]
+        ? rule.definition_i18n[lang] : rule.definition;
+      div.appendChild(el("div", "rule-def", definition));
+    }
     if (item.target) {
       div.title = T.advice_jump_title + item.target.kind;
       div.addEventListener("click", () => {
@@ -674,8 +702,9 @@ function renderAdviceControls() {
   wrap.appendChild(el("span", "muted", T.advice_show));
   present.forEach(ruleId => {
     const rule = adviceRules[ruleId];
-    const btn = el("button", "rule-toggle" + (hiddenRules.has(ruleId) ? " off" : ""),
-      rule ? rule.title : ruleId);
+    const title = rule && rule.title_i18n && rule.title_i18n[lang]
+      ? rule.title_i18n[lang] : (rule ? rule.title : ruleId);
+    const btn = el("button", "rule-toggle" + (hiddenRules.has(ruleId) ? " off" : ""), title);
     btn.addEventListener("click", () => {
       if (hiddenRules.has(ruleId)) hiddenRules.delete(ruleId); else hiddenRules.add(ruleId);
       refreshAdviceViews();
@@ -701,8 +730,12 @@ function renderRuleCatalog() {
     div.appendChild(el("span", "cat-fire" + (n ? " on" : ""),
       n ? n + " " + T.rulecat_firing : T.rulecat_dormant));
     if (rule.level) div.appendChild(el("span", "level-tag " + rule.level, rule.level));
-    div.appendChild(el("span", "cat-title", rule.title));
-    div.appendChild(el("div", "rule-def", rule.definition));
+    const title = rule.title_i18n && rule.title_i18n[lang]
+      ? rule.title_i18n[lang] : rule.title;
+    const definition = rule.definition_i18n && rule.definition_i18n[lang]
+      ? rule.definition_i18n[lang] : rule.definition;
+    div.appendChild(el("span", "cat-title", title));
+    div.appendChild(el("div", "rule-def", definition));
     wrap.appendChild(div);
   });
 }
@@ -716,14 +749,14 @@ function renderSkillWhatif() {
   const inputs = el("div", "wi-inputs");
   const turnsLabel = el("label", null, T.wi_min_turns);
   const turnsInput = el("input"); turnsInput.type = "number"; turnsInput.min = "1";
-  turnsInput.value = adviceTh.skill_min_turns; turnsLabel.appendChild(turnsInput);
+  turnsInput.value = skillWhatifState.turns; turnsLabel.appendChild(turnsInput);
   const spendLabel = el("label", null, T.wi_warn_ge);
   const spendInput = el("input"); spendInput.type = "number"; spendInput.min = "0";
-  spendInput.step = "5000"; spendInput.value = adviceTh.skill_new_spend_per_turn;
+  spendInput.step = "5000"; spendInput.value = skillWhatifState.spend;
   spendLabel.appendChild(spendInput);
   const critLabel = el("label", null, T.wi_critical_ge);
   const critInput = el("input"); critInput.type = "number"; critInput.min = "0";
-  critInput.step = "5000"; critInput.value = adviceTh.skill_critical_new_spend_per_turn;
+  critInput.step = "5000"; critInput.value = skillWhatifState.critical;
   critLabel.appendChild(critInput);
   const reset = el("button", null, T.wi_reset);
   inputs.appendChild(turnsLabel); inputs.appendChild(spendLabel);
@@ -750,6 +783,9 @@ function renderSkillWhatif() {
     const Tturns = Number(turnsInput.value) || 0;
     const Tspend = Number(spendInput.value) || 0;
     const Tcrit = Number(critInput.value) || 0;
+    skillWhatifState.turns = Tturns;
+    skillWhatifState.spend = Tspend;
+    skillWhatifState.critical = Tcrit;
     snippet.textContent = JSON.stringify({ advice: {
       skill_min_turns: Tturns,
       skill_new_spend_per_turn: Tspend,
@@ -786,9 +822,9 @@ function renderSkillWhatif() {
   spendInput.addEventListener("input", draw);
   critInput.addEventListener("input", draw);
   reset.addEventListener("click", () => {
-    turnsInput.value = adviceTh.skill_min_turns;
-    spendInput.value = adviceTh.skill_new_spend_per_turn;
-    critInput.value = adviceTh.skill_critical_new_spend_per_turn;
+    turnsInput.value = skillWhatifState.turns = adviceTh.skill_min_turns;
+    spendInput.value = skillWhatifState.spend = adviceTh.skill_new_spend_per_turn;
+    critInput.value = skillWhatifState.critical = adviceTh.skill_critical_new_spend_per_turn;
     draw();
   });
   draw();
@@ -1006,13 +1042,16 @@ function renderSkillChains() {
     ? T.chain_hint_total
     : T.chain_hint_percall));
   wrap.appendChild(controls);
+  // Heading and its explainer stay separate lines: a short scannable title,
+  // the long ranking note below it.
   const title = el("div", "muted",
-    (chainMode === "total"
-      ? T.chain_title_total
-      : T.chain_title_percall)
-    + T.chain_title_suffix);
-  title.style.margin = "0 0 6px";
+    chainMode === "total" ? T.chain_title_total : T.chain_title_percall);
+  title.style.margin = "0 0 2px";
+  title.style.fontWeight = "600";
   wrap.appendChild(title);
+  const titleNote = el("div", "muted", T.chain_title_suffix);
+  titleNote.style.margin = "0 0 6px";
+  wrap.appendChild(titleNote);
   // Shared scales so bars are comparable ACROSS skills in both modes.
   let globalToolMax = 1, globalAvgMax = 1;
   S.by_skill_chain.forEach(r => r.tools.forEach(t => {
@@ -1125,12 +1164,17 @@ function renderSkillChains() {
 renderSkillChains();
 
 /* 3b — subagent tokens by dispatch type */
-(function renderAgentTypes() {
+function renderAgentTypes() {
   const wrap = document.getElementById("agent-types");
+  wrap.textContent = "";
   if (!S.by_agent_type || !S.by_agent_type.length) return;
   const title = el("div", "muted", T.agent_title);
-  title.style.margin = "16px 0 6px";
+  title.style.margin = "16px 0 2px";
+  title.style.fontWeight = "600";
   wrap.appendChild(title);
+  const titleNote = el("div", "muted", T.agent_title_sub);
+  titleNote.style.margin = "0 0 6px";
+  wrap.appendChild(titleNote);
   const table = el("table");
   const head = el("tr");
   [[T.agent_col_type, true], [T.agent_col_agents, false], [T.agent_col_req, false],
@@ -1153,11 +1197,12 @@ renderSkillChains();
   });
   table.appendChild(tbody);
   wrap.appendChild(table);
-})();
+}
 
 /* 4 — projects rollup */
-(function renderProjects() {
+function renderProjects() {
   const wrap = document.getElementById("projects-wrap");
+  wrap.textContent = "";
   if (!S.by_project || !S.by_project.length) {
     wrap.appendChild(el("div", "empty", T.projects_empty)); return;
   }
@@ -1201,11 +1246,13 @@ renderSkillChains();
   });
   table.appendChild(tbody);
   wrap.appendChild(table);
-})();
+}
 
 /* 5 — sessions table */
-(function renderSessions() {
+const sessionTableState = { sortKey: "total_tokens", sortDir: -1, showAll: false };
+function renderSessions() {
   const wrap = document.getElementById("sessions-wrap");
+  wrap.textContent = "";
   if (!S.sessions.length) { wrap.appendChild(el("div", "empty", T.sessions_empty)); return; }
   const COLS = [
     { key: "project", label: T.sess_col_project, text: true },
@@ -1247,10 +1294,10 @@ renderSkillChains();
     { key: "errors", label: T.sess_col_err, render: (row, td) => { td.textContent = row.errors || ""; } },
     { key: "flags", label: T.sess_col_flags, text: true, sortValue: row => row.flags.length,
       render: (row, td) => {
-        row.flags.forEach(flag => td.appendChild(el("span", "flag " + flag, flag)));
+        row.flags.forEach(flag => td.appendChild(
+          el("span", "flag " + flag, T["flag_" + flag] || flag)));
       } },
   ];
-  let sortKey = "total_tokens", sortDir = -1, showAll = false;
   const table = el("table");
   const thead = el("thead");
   const groupRow = el("tr", "col-groups");
@@ -1266,7 +1313,8 @@ renderSkillChains();
   COLS.forEach(col => {
     const th = el("th", "sortable" + (col.text ? " text" : ""), col.label);
     th.addEventListener("click", () => {
-      if (sortKey === col.key) sortDir *= -1; else { sortKey = col.key; sortDir = -1; }
+      if (sessionTableState.sortKey === col.key) sessionTableState.sortDir *= -1;
+      else { sessionTableState.sortKey = col.key; sessionTableState.sortDir = -1; }
       drawBody(); markSorted();
     });
     th.dataset.key = col.key;
@@ -1276,21 +1324,23 @@ renderSkillChains();
   const tbody = el("tbody"); table.appendChild(tbody);
   function markSorted() {
     headRow.querySelectorAll("th").forEach(th => {
-      const base = th.dataset.key === sortKey ? (sortDir < 0 ? " ▾" : " ▴") : "";
+      const base = th.dataset.key === sessionTableState.sortKey
+        ? (sessionTableState.sortDir < 0 ? " ▾" : " ▴") : "";
       th.textContent = COLS.find(c => c.key === th.dataset.key).label + base;
     });
   }
   function drawBody() {
-    const col = COLS.find(c => c.key === sortKey);
+    const col = COLS.find(c => c.key === sessionTableState.sortKey);
     const value = row => col.sortValue ? col.sortValue(row)
-      : row[sortKey] === null || row[sortKey] === undefined ? -Infinity : row[sortKey];
+      : row[sessionTableState.sortKey] === null || row[sessionTableState.sortKey] === undefined
+        ? -Infinity : row[sessionTableState.sortKey];
     const sorted = [...S.sessions].sort((a, b) => {
       const va = value(a), vb = value(b);
       if (typeof va === "string" || typeof vb === "string")
-        return String(va).localeCompare(String(vb)) * sortDir;
-      return (va - vb) * sortDir;
+        return String(va).localeCompare(String(vb)) * sessionTableState.sortDir;
+      return (va - vb) * sessionTableState.sortDir;
     });
-    const rows = showAll ? sorted : sorted.slice(0, SESSION_LIMIT);
+    const rows = sessionTableState.showAll ? sorted : sorted.slice(0, SESSION_LIMIT);
     tbody.textContent = "";
     rows.forEach(row => {
       const tr = el("tr");
@@ -1303,17 +1353,20 @@ renderSkillChains();
       });
       tbody.appendChild(tr);
     });
-    toggleBtn.textContent = showAll
+    toggleBtn.textContent = sessionTableState.showAll
       ? T.show_top_only_pre + SESSION_LIMIT + T.show_top_only_post
       : T.show_all_pre + S.sessions.length + " " + T.noun_sessions;
     toggleBtn.style.display = S.sessions.length > SESSION_LIMIT ? "" : "none";
   }
   const toggleBtn = el("button", "show-toggle");
-  toggleBtn.addEventListener("click", () => { showAll = !showAll; drawBody(); });
+  toggleBtn.addEventListener("click", () => {
+    sessionTableState.showAll = !sessionTableState.showAll;
+    drawBody();
+  });
   drawBody(); markSorted();
   wrap.appendChild(table);
   wrap.appendChild(toggleBtn);
-})();
+}
 
 /* 6 — duplicate reads */
 let dupExpanded = false;
@@ -1352,12 +1405,13 @@ function renderDup() {
 renderDup();
 
 /* warnings + footer */
-(function renderWarnings() {
+function renderWarnings() {
   const total = S.meta.parse_warnings_total;
   document.getElementById("warnings-summary").textContent =
     T.warn_summary_pre + total + (S.parse_warnings.length < total
       ? T.warn_summary_showing + S.parse_warnings.length : "") + ")";
   const wrap = document.getElementById("warnings-wrap");
+  wrap.textContent = "";
   if (!S.parse_warnings.length) { wrap.appendChild(el("div", "empty", T.warn_empty)); return; }
   const table = el("table");
   const head = el("tr");
@@ -1377,9 +1431,38 @@ renderDup();
   });
   table.appendChild(tbody);
   wrap.appendChild(table);
-})();
-document.getElementById("footer").textContent =
-  "claudeye v" + S.meta.version + T.footer_suffix;
+}
+function renderFooter() {
+  document.getElementById("footer").textContent =
+    "claudeye v" + S.meta.version + T.footer_suffix;
+}
+
+function renderLocalized() {
+  renderMeta();
+  renderCards();
+  renderToolBars(currentMetric);
+  renderAdviceControls();
+  renderAdvice();
+  renderRuleCatalog();
+  renderSkillWhatif();
+  renderDaily();
+  renderSkillChains();
+  renderAgentTypes();
+  renderProjects();
+  renderSessions();
+  renderDup();
+  renderWarnings();
+  renderFooter();
+  updateSectionMarkers();
+}
+
+renderMeta();
+renderCards();
+renderAgentTypes();
+renderProjects();
+renderSessions();
+renderWarnings();
+renderFooter();
 
 /* Two-column masonry for the diagnostic sections: greedily drop each into
    the shorter column so no column is left stranded with whitespace (pure
