@@ -110,6 +110,9 @@ tr:hover td { background:rgba(86,180,233,.05); }
 .advice-item.linked { cursor:pointer; }
 .advice-item.linked:hover { border-left-color:var(--accent); }
 .advice-item .rule-def { color:var(--muted); font-size:11px; margin-top:4px; }
+.advice-item .conf-tag { display:inline-block; margin-left:8px; padding:1px 7px;
+  border:1px solid var(--border); border-radius:9px; color:var(--muted);
+  font-size:9.5px; line-height:1.35; vertical-align:1px; }
 .advice-controls { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:10px; }
 .advice-controls .rule-toggle { background:transparent; color:var(--text);
   border:1px solid var(--border); border-radius:12px; padding:2px 10px; cursor:pointer;
@@ -221,7 +224,7 @@ footer { color:var(--muted); font-size:11px; margin-top:24px; }
 <header>
   <div class="brand">
     <h1>claudeye</h1>
-    <div class="brand-sub">(C_C\) Claude Code usage-analyzer</div>
+    <div class="brand-sub" data-i18n="brand_sub">measurement layer for a self-improving harness</div>
   </div>
   <div class="lang-toggle" id="lang-toggle"></div>
   <div class="meta" id="meta-line"></div>
@@ -252,7 +255,7 @@ footer { color:var(--muted); font-size:11px; margin-top:24px; }
 </section>
 
 <section>
-  <h2 class="foldable" data-body="body-tools"><span data-i18n="sec_tools">Tool pollution ranking</span><span class="conf" id="conf-tools"></span></h2>
+  <h2 class="foldable" data-body="body-tools"><span data-i18n="sec_tools">Tool-result sizes</span><span class="conf" id="conf-tools"></span></h2>
   <div class="sec-body" id="body-tools">
     <div class="controls"><span data-i18n="ctl_sortby">sort by</span>
       <button id="btn-bytes" class="active" data-i18n="ctl_resultsize">result size</button>
@@ -350,7 +353,7 @@ const TOOL_LIMIT = 10, SESSION_LIMIT = 15, DUP_LIMIT = 10, DAY_LIMIT = 14;
    Extensible: add a language by adding one dictionary plus a toggle entry. */
 const STRINGS = __UI_STRINGS__;
 let lang = STRINGS[(S.meta && S.meta.lang) || "en"] ? S.meta.lang : "en";
-const T = STRINGS[lang];
+let T = STRINGS[lang];
 function applyStatic() {
   document.querySelectorAll("[data-i18n]").forEach(node => {
     const v = STRINGS[lang][node.dataset.i18n];
@@ -363,7 +366,13 @@ function renderLangToggle() {
   wrap.textContent = "";
   [["en", "EN"], ["ko", "한국어"]].forEach(([code, label]) => {
     const btn = el("button", "lang-btn" + (lang === code ? " active" : ""), label);
-    btn.addEventListener("click", () => { lang = code; applyStatic(); renderLangToggle(); });
+    btn.addEventListener("click", () => {
+      lang = code;
+      T = STRINGS[lang];
+      applyStatic();
+      renderLangToggle();
+      renderLocalized();
+    });
     wrap.appendChild(btn);
   });
 }
@@ -417,7 +426,7 @@ function showToggle(total, limit, expanded, noun, onClick) {
 }
 
 /* header */
-(function renderMeta() {
+function renderMeta() {
   const m = S.meta;
   const parts = [
     T.meta_generated + m.generated_at,
@@ -436,14 +445,15 @@ function showToggle(total, limit, expanded, noun, onClick) {
   document.getElementById("conf-sessions").textContent = T.conf_sessions;
   document.getElementById("conf-dup").textContent = T.conf_dup;
   const notes = document.getElementById("conf-notes");
+  notes.textContent = "";
   Object.entries(m.confidence).forEach(([key, note]) => {
-    notes.appendChild(el("dt", null, key));
-    notes.appendChild(el("dd", null, note));
+    notes.appendChild(el("dt", null, T["confname_" + key] || key));
+    notes.appendChild(el("dd", null, T["confnote_" + key] || note));
   });
-})();
+}
 
 /* totals cards — volume vs waste-signal groups */
-(function renderCards() {
+function renderCards() {
   const t = S.totals;
   const newTokens = t.input_tokens + t.output_tokens + t.cache_creation_tokens;
   const cacheShare = t.total_tokens > 0
@@ -502,7 +512,9 @@ function showToggle(total, limit, expanded, noun, onClick) {
       t.sessions + " " + T.unit_sessions + " · "
       + fmt(t.requests + t.subagent_requests) + " " + T.unit_req),
     card(T.card_new_tokens, fmt(newTokens), T.card_new_tokens_sub),
-    card(T.card_cache_reuse, fmt(t.cache_read_tokens), cacheShare + " " + T.card_cache_reuse_sub),
+    card(T.card_cache_reuse, fmt(t.cache_read_tokens),
+      lang === "ko" ? T.card_cache_reuse_sub + " " + cacheShare
+        : cacheShare + " " + T.card_cache_reuse_sub),
     card(T.card_tool_activity, fmt(t.tool_calls), T.card_tool_activity_sub),
     peakDay ? card(T.card_peak_day, peakDay.slice(5), fmt(peakTotal) + " " + T.unit_tokens) : null,
     topModel ? card(T.card_model_mix, topModel[0].replace(/^claude-/, ""),
@@ -529,9 +541,10 @@ function showToggle(total, limit, expanded, noun, onClick) {
   }
 
   const wrap = document.getElementById("totals-cards");
+  wrap.textContent = "";
   wrap.appendChild(group(T.group_volume, volume));
   wrap.appendChild(group(T.group_waste, waste));
-})();
+}
 
 /* 2 — tool bars */
 let toolsExpanded = false;
@@ -614,11 +627,21 @@ function renderAdvice() {
     const level = lvlOf(item);
     const div = el("div", "advice-item level-" + level + (item.target ? " linked" : ""));
     div.appendChild(el("span", "level-tag " + level, level));
-    div.appendChild(el("span", "rule", item.rule));
-    div.appendChild(document.createTextNode(item.message));
-    div.appendChild(el("span", "conf-tag", item.confidence));
     const rule = adviceRules[item.rule];
-    if (rule) div.appendChild(el("div", "rule-def", rule.definition));
+    const ruleTitle = rule && rule.title_i18n && rule.title_i18n[lang]
+      ? rule.title_i18n[lang] : (rule ? rule.title : item.rule);
+    div.appendChild(el("span", "rule", ruleTitle));
+    const message = item.message_i18n && item.message_i18n[lang]
+      ? item.message_i18n[lang] : item.message;
+    const confidence = item.confidence_i18n && item.confidence_i18n[lang]
+      ? item.confidence_i18n[lang] : item.confidence;
+    div.appendChild(document.createTextNode(message));
+    div.appendChild(el("span", "conf-tag", confidence));
+    if (rule) {
+      const definition = rule.definition_i18n && rule.definition_i18n[lang]
+        ? rule.definition_i18n[lang] : rule.definition;
+      div.appendChild(el("div", "rule-def", definition));
+    }
     if (item.target) {
       div.title = T.advice_jump_title + item.target.kind;
       div.addEventListener("click", () => {
@@ -674,8 +697,9 @@ function renderAdviceControls() {
   wrap.appendChild(el("span", "muted", T.advice_show));
   present.forEach(ruleId => {
     const rule = adviceRules[ruleId];
-    const btn = el("button", "rule-toggle" + (hiddenRules.has(ruleId) ? " off" : ""),
-      rule ? rule.title : ruleId);
+    const title = rule && rule.title_i18n && rule.title_i18n[lang]
+      ? rule.title_i18n[lang] : (rule ? rule.title : ruleId);
+    const btn = el("button", "rule-toggle" + (hiddenRules.has(ruleId) ? " off" : ""), title);
     btn.addEventListener("click", () => {
       if (hiddenRules.has(ruleId)) hiddenRules.delete(ruleId); else hiddenRules.add(ruleId);
       refreshAdviceViews();
@@ -701,8 +725,12 @@ function renderRuleCatalog() {
     div.appendChild(el("span", "cat-fire" + (n ? " on" : ""),
       n ? n + " " + T.rulecat_firing : T.rulecat_dormant));
     if (rule.level) div.appendChild(el("span", "level-tag " + rule.level, rule.level));
-    div.appendChild(el("span", "cat-title", rule.title));
-    div.appendChild(el("div", "rule-def", rule.definition));
+    const title = rule.title_i18n && rule.title_i18n[lang]
+      ? rule.title_i18n[lang] : rule.title;
+    const definition = rule.definition_i18n && rule.definition_i18n[lang]
+      ? rule.definition_i18n[lang] : rule.definition;
+    div.appendChild(el("span", "cat-title", title));
+    div.appendChild(el("div", "rule-def", definition));
     wrap.appendChild(div);
   });
 }
@@ -1006,13 +1034,16 @@ function renderSkillChains() {
     ? T.chain_hint_total
     : T.chain_hint_percall));
   wrap.appendChild(controls);
+  // Heading and its explainer stay separate lines: a short scannable title,
+  // the long ranking note below it.
   const title = el("div", "muted",
-    (chainMode === "total"
-      ? T.chain_title_total
-      : T.chain_title_percall)
-    + T.chain_title_suffix);
-  title.style.margin = "0 0 6px";
+    chainMode === "total" ? T.chain_title_total : T.chain_title_percall);
+  title.style.margin = "0 0 2px";
+  title.style.fontWeight = "600";
   wrap.appendChild(title);
+  const titleNote = el("div", "muted", T.chain_title_suffix);
+  titleNote.style.margin = "0 0 6px";
+  wrap.appendChild(titleNote);
   // Shared scales so bars are comparable ACROSS skills in both modes.
   let globalToolMax = 1, globalAvgMax = 1;
   S.by_skill_chain.forEach(r => r.tools.forEach(t => {
@@ -1125,12 +1156,17 @@ function renderSkillChains() {
 renderSkillChains();
 
 /* 3b — subagent tokens by dispatch type */
-(function renderAgentTypes() {
+function renderAgentTypes() {
   const wrap = document.getElementById("agent-types");
+  wrap.textContent = "";
   if (!S.by_agent_type || !S.by_agent_type.length) return;
   const title = el("div", "muted", T.agent_title);
-  title.style.margin = "16px 0 6px";
+  title.style.margin = "16px 0 2px";
+  title.style.fontWeight = "600";
   wrap.appendChild(title);
+  const titleNote = el("div", "muted", T.agent_title_sub);
+  titleNote.style.margin = "0 0 6px";
+  wrap.appendChild(titleNote);
   const table = el("table");
   const head = el("tr");
   [[T.agent_col_type, true], [T.agent_col_agents, false], [T.agent_col_req, false],
@@ -1153,11 +1189,12 @@ renderSkillChains();
   });
   table.appendChild(tbody);
   wrap.appendChild(table);
-})();
+}
 
 /* 4 — projects rollup */
-(function renderProjects() {
+function renderProjects() {
   const wrap = document.getElementById("projects-wrap");
+  wrap.textContent = "";
   if (!S.by_project || !S.by_project.length) {
     wrap.appendChild(el("div", "empty", T.projects_empty)); return;
   }
@@ -1201,11 +1238,12 @@ renderSkillChains();
   });
   table.appendChild(tbody);
   wrap.appendChild(table);
-})();
+}
 
 /* 5 — sessions table */
-(function renderSessions() {
+function renderSessions() {
   const wrap = document.getElementById("sessions-wrap");
+  wrap.textContent = "";
   if (!S.sessions.length) { wrap.appendChild(el("div", "empty", T.sessions_empty)); return; }
   const COLS = [
     { key: "project", label: T.sess_col_project, text: true },
@@ -1247,7 +1285,8 @@ renderSkillChains();
     { key: "errors", label: T.sess_col_err, render: (row, td) => { td.textContent = row.errors || ""; } },
     { key: "flags", label: T.sess_col_flags, text: true, sortValue: row => row.flags.length,
       render: (row, td) => {
-        row.flags.forEach(flag => td.appendChild(el("span", "flag " + flag, flag)));
+        row.flags.forEach(flag => td.appendChild(
+          el("span", "flag " + flag, T["flag_" + flag] || flag)));
       } },
   ];
   let sortKey = "total_tokens", sortDir = -1, showAll = false;
@@ -1313,7 +1352,7 @@ renderSkillChains();
   drawBody(); markSorted();
   wrap.appendChild(table);
   wrap.appendChild(toggleBtn);
-})();
+}
 
 /* 6 — duplicate reads */
 let dupExpanded = false;
@@ -1352,12 +1391,13 @@ function renderDup() {
 renderDup();
 
 /* warnings + footer */
-(function renderWarnings() {
+function renderWarnings() {
   const total = S.meta.parse_warnings_total;
   document.getElementById("warnings-summary").textContent =
     T.warn_summary_pre + total + (S.parse_warnings.length < total
       ? T.warn_summary_showing + S.parse_warnings.length : "") + ")";
   const wrap = document.getElementById("warnings-wrap");
+  wrap.textContent = "";
   if (!S.parse_warnings.length) { wrap.appendChild(el("div", "empty", T.warn_empty)); return; }
   const table = el("table");
   const head = el("tr");
@@ -1377,9 +1417,38 @@ renderDup();
   });
   table.appendChild(tbody);
   wrap.appendChild(table);
-})();
-document.getElementById("footer").textContent =
-  "claudeye v" + S.meta.version + T.footer_suffix;
+}
+function renderFooter() {
+  document.getElementById("footer").textContent =
+    "claudeye v" + S.meta.version + T.footer_suffix;
+}
+
+function renderLocalized() {
+  renderMeta();
+  renderCards();
+  renderToolBars(currentMetric);
+  renderAdviceControls();
+  renderAdvice();
+  renderRuleCatalog();
+  renderSkillWhatif();
+  renderDaily();
+  renderSkillChains();
+  renderAgentTypes();
+  renderProjects();
+  renderSessions();
+  renderDup();
+  renderWarnings();
+  renderFooter();
+  updateSectionMarkers();
+}
+
+renderMeta();
+renderCards();
+renderAgentTypes();
+renderProjects();
+renderSessions();
+renderWarnings();
+renderFooter();
 
 /* Two-column masonry for the diagnostic sections: greedily drop each into
    the shorter column so no column is left stranded with whitespace (pure

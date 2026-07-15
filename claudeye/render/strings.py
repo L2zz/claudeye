@@ -22,9 +22,10 @@ from __future__ import annotations
 UI_STRINGS: dict[str, dict[str, str]] = {
     "en": {
         # --- chrome / i18n (data-i18n keys, live-toggled) ---
+        "brand_sub": "Usage measurement · waste detection · harness improvement",
         "sec_advice": "Advice — flagged patterns",
         "sec_daily": "Daily tokens by model",
-        "sec_tools": "Tool pollution ranking",
+        "sec_tools": "Tool-result sizes",
         "sec_chains": "Skill & subagent chains",
         "sec_projects": "Projects",
         "sec_sessions": "Sessions",
@@ -64,14 +65,14 @@ UI_STRINGS: dict[str, dict[str, str]] = {
         "card_tool_activity_sub": "calls",
         "card_peak_day": "peak day",
         "card_model_mix": "model mix",
-        "card_tool_pollution": "tool pollution",
-        "card_tool_pollution_sub": "re-entered context",
+        "card_tool_pollution": "tool-result size",
+        "card_tool_pollution_sub": "total payload returned to the model",
         "card_waste_signals": "waste signals",
         "card_waste_signals_sub": "re-reads · compactions · errors",
         "card_parse_warnings": "parse warnings",
         "card_parse_warnings_sub": "see details below",
         "card_jump_title": "jump to the matching section",
-        # --- tool pollution bars ---
+        # --- tool-result size bars ---
         "tools_empty": "no tools match this filter",
         "tool_flag_chip": "advice",
         "tool_flagged_title": " · flagged by advice below",
@@ -131,7 +132,7 @@ UI_STRINGS: dict[str, dict[str, str]] = {
         "size per call; counts shown as the basis",
         "chain_title_total": "cumulative new tokens per skill",
         "chain_title_percall": "new tokens per turn per skill",
-        "chain_title_suffix": " — ranked by new tokens (input + output + cache write); "
+        "chain_title_suffix": "Ranked by new tokens (input + output + cache write); "
         "cache read is ambient call-time context, shown separately. Click a row for its tools.",
         "chain_flag_critical": "critical",
         "chain_flag_review": "needs review",
@@ -158,7 +159,9 @@ UI_STRINGS: dict[str, dict[str, str]] = {
         "chain_nested_note": "nested Skill dispatches above are counted under their own skill rows",
         "chain_no_tools": "no tool calls on this skill's turns",
         # --- agent types ---
-        "agent_title": "Subagent new tokens by dispatch type (cache read is ambient, excluded)",
+        "agent_title": "Subagent new tokens by dispatch type",
+        "agent_title_sub": "Cache read is ambient call-time context and excluded "
+        "from new-token ranking.",
         "agent_col_type": "type",
         "agent_col_agents": "agents",
         "agent_col_req": "req",
@@ -234,6 +237,36 @@ UI_STRINGS: dict[str, dict[str, str]] = {
         "conf_projects": "measured",
         "conf_sessions": "cache eff: measured",
         "conf_dup": "inferred (Read only)",
+        "confnote_tokens": "Measured — usage is deduplicated by line UUID and API "
+        "message ID, so copied fork/continue history counts once across the corpus.",
+        "confnote_tool_calls": "Measured — tool-use blocks count once per tool-use ID.",
+        "confnote_tool_result_bytes": "Measured — serialized tool-result payload "
+        "entering the model context.",
+        "confnote_dup_reads": "Inferred — covers repeated Read file paths only; "
+        "cat and Grep rereads are not observed.",
+        "confnote_cache_efficiency": "Measured — cache read / (input + cache read) "
+        "for each session.",
+        "confnote_fork_attribution": "Inferred — a fork reports only activity that "
+        "happened in it; inherited history stays with the first-discovered session.",
+        "confnote_subagent_types": "Measured — sidechain tokens join to dispatch type "
+        "through toolUseResult.agentId; unmatched agents remain unattributed.",
+        "confnote_skill_chains": "Measured attribution — whole assistant turns stamped "
+        "with attributionSkill are grouped by skill; tool results join by tool-use ID.",
+        "confnote_per_tool_tokens": "Approximate by design — usage belongs to an API "
+        "response, so tokens are not split among individual tools.",
+        "confname_tokens": "Token usage",
+        "confname_tool_calls": "Tool calls",
+        "confname_tool_result_bytes": "Tool-result bytes",
+        "confname_dup_reads": "Duplicate reads",
+        "confname_cache_efficiency": "Cache efficiency",
+        "confname_fork_attribution": "Fork attribution",
+        "confname_subagent_types": "Subagent types",
+        "confname_skill_chains": "Skill chains",
+        "confname_per_tool_tokens": "Per-tool tokens",
+        "flag_dup-read": "duplicate Read",
+        "flag_low-cache": "low cache",
+        "flag_compacted": "compacted",
+        "flag_errors": "errors",
         # --- warnings + footer ---
         "warn_summary_pre": "Parse warnings (",
         "warn_summary_showing": ", showing first ",
@@ -246,16 +279,17 @@ UI_STRINGS: dict[str, dict[str, str]] = {
     },
     "ko": {
         # --- chrome / i18n (data-i18n keys, live-toggled) ---
+        "brand_sub": "사용량 측정 · 낭비 탐지 · 하네스 개선",
         "sec_advice": "Advice — 감지된 패턴",
         "sec_daily": "모델별 일별 토큰",
-        "sec_tools": "도구별 컨텍스트 오염",
+        "sec_tools": "도구 결과 크기",
         "sec_chains": "스킬·서브에이전트 체인",
         "sec_projects": "프로젝트",
         "sec_sessions": "세션",
         "sec_dup": "중복 읽기",
         "sum_rules": "전체 규칙과 정의",
-        "sum_whatif": "What-if — 스킬 임계 조정 (탐색 전용)",
-        "whatif_hint": "turns 최소값과 new tokens/turn 임곗값을 조정해 어떤 스킬이 "
+        "sum_whatif": "What-if — 스킬 임계값 조정 (탐색 전용)",
+        "whatif_hint": "turns 최소값과 new tokens/turn 임계값을 조정해 어떤 스킬이 "
         "감지되는지 확인합니다. 위 Advice 항목과 그래프 색은 바뀌지 않습니다.",
         "ctl_sortby": "정렬 기준",
         "ctl_resultsize": "결과 크기",
@@ -265,12 +299,12 @@ UI_STRINGS: dict[str, dict[str, str]] = {
         "ctl_skills": "스킬만",
         "ctl_mcp": "MCP만",
         # --- static chrome not previously keyed ---
-        "sum_conf_notes": "Confidence 노트 — 측정값 vs 추정값",
+        "sum_conf_notes": "측정 신뢰도 — 측정값 vs 추정값",
         # --- shared units / separators kept as words ---
         "unit_tokens": "tokens",
         "unit_sessions": "세션",
         "unit_req": "req",
-        "unit_calls": "호출",
+        "unit_calls": "호출 수",
         "unit_turns": "turns",
         "unit_more": "개 더",
         "unit_sub": "sub",
@@ -280,32 +314,32 @@ UI_STRINGS: dict[str, dict[str, str]] = {
         "group_volume": "규모",
         "group_waste": "낭비 신호",
         "card_total_tokens": "전체 tokens",
-        "card_new_tokens": "새로 쓴 tokens",
-        "card_new_tokens_sub": "입력 + 출력 + cache 쓰기",
+        "card_new_tokens": "캐시 제외 토큰",
+        "card_new_tokens_sub": "input + output + cache write",
         "card_cache_reuse": "cache 재사용",
         "card_cache_reuse_sub": "전체 대비",
         "card_tool_activity": "도구 활동",
-        "card_tool_activity_sub": "호출",
+        "card_tool_activity_sub": "호출 수",
         "card_peak_day": "최다 사용일",
         "card_model_mix": "모델 구성",
-        "card_tool_pollution": "도구 오염",
-        "card_tool_pollution_sub": "재유입된 컨텍스트",
+        "card_tool_pollution": "도구 결과 크기",
+        "card_tool_pollution_sub": "모델에 반환된 결과 payload 합계",
         "card_waste_signals": "낭비 신호",
         "card_waste_signals_sub": "재읽기 · compaction · 오류",
         "card_parse_warnings": "파싱 경고",
         "card_parse_warnings_sub": "아래 상세 참고",
         "card_jump_title": "해당 섹션으로 이동",
-        # --- tool pollution bars ---
+        # --- tool-result size bars ---
         "tools_empty": "이 필터에 맞는 도구가 없습니다",
-        "tool_flag_chip": "advice",
-        "tool_flagged_title": " · 아래 advice 에서 지적됨",
+        "tool_flag_chip": "Advice",
+        "tool_flagged_title": " · 아래 Advice에서 지적됨",
         "tool_max_result_title": " — 단일 최대 결과 ",
         "tool_errors_title": " 오류",
-        "unit_calls_suffix": " 호출",
+        "unit_calls_suffix": "회 호출",
         # --- advice ---
-        "advice_empty_filtered": "이 레벨/필터에 해당하는 advice 가 없습니다 — "
+        "advice_empty_filtered": "이 레벨/필터에 해당하는 Advice가 없습니다 — "
         "레벨을 낮추거나 위에서 규칙을 다시 켜세요",
-        "advice_empty_none": "임곗값을 넘은 패턴이 없습니다 — 아래 규칙 목록을 참고하세요",
+        "advice_empty_none": "임계값을 넘은 패턴이 없습니다 — 아래 규칙 목록을 참고하세요",
         "advice_show": "표시:",
         "advice_level_ge": " 레벨 ≥",
         "advice_jump_title": "지적된 항목으로 이동: ",
@@ -317,7 +351,7 @@ UI_STRINGS: dict[str, dict[str, str]] = {
         "wi_warn_ge": "warn ≥",
         "wi_critical_ge": "critical ≥",
         "wi_reset": "초기화",
-        "wi_persist_hint": "~/.config/claudeye/config.json 에 저장(또는 --config PATH "
+        "wi_persist_hint": "~/.config/claudeye/config.json에 저장(또는 --config PATH "
         "전달)하면 유지됩니다:",
         "wi_copy": "복사",
         "wi_copied": "복사됨",
@@ -325,10 +359,10 @@ UI_STRINGS: dict[str, dict[str, str]] = {
         "wi_status_turns_lt": " turns < ",
         "wi_status_fire_critical": "발생 예상 · critical",
         "wi_status_fire_warn": "발생 예상 · warn",
-        "wi_status_below": "임곗값 미만",
+        "wi_status_below": "임계값 미만",
         # --- daily chart ---
         "daily_empty": "날짜별 사용 기록이 없습니다",
-        "daily_legend": "진한색 = 새로 쓴 tokens (input + output + cache write) "
+        "daily_legend": "진한색 = 캐시 제외 토큰 (input + output + cache write) "
         "· 흐린색 = cache 재사용 · 주말 레이블은 강조색",
         "daily_tip_new": " · 신규 ",
         "daily_tip_reuse": " · 재사용 ",
@@ -346,32 +380,35 @@ UI_STRINGS: dict[str, dict[str, str]] = {
         "weekend_sunday": "일요일",
         "weekend_saturday": "토요일",
         # --- skill chains ---
-        "chains_empty": "스킬로 귀속된 turn 이 없습니다",
+        "chains_empty": "스킬에 귀속된 turn이 없습니다",
         "chain_tool_composition": "도구 구성",
         "chain_mode_total": "누적",
         "chain_mode_percall": "회당",
         "chain_hint_total": " — 누적; 막대 스케일은 모든 스킬에 공통",
-        "chain_hint_percall": " — 스킬 막대 = turn 당 tokens, 도구 막대 = 호출당 결과 "
+        "chain_hint_percall": " — 스킬 막대 = turn당 tokens, 도구 막대 = 호출당 결과 "
         "크기; 횟수는 근거로 표시",
-        "chain_title_total": "스킬별 누적 새 tokens",
-        "chain_title_percall": "스킬별 turn 당 새 tokens",
-        "chain_title_suffix": " — 새 tokens (input + output + cache write) 기준 정렬; "
-        "cache read 는 호출 시점의 주변 컨텍스트라 별도 표시. 행을 클릭하면 도구를 봅니다.",
+        "chain_title_total": "스킬별 누적 귀속 사용 tokens",
+        "chain_title_percall": "스킬별 turn당 귀속 사용 tokens",
+        "chain_title_suffix": "귀속 사용 tokens = input + output + cache write. "
+        "cache read는 호출 시점 배경 컨텍스트라 제외합니다. 행을 클릭하면 도구를 봅니다.",
         "chain_flag_critical": "critical",
         "chain_flag_review": "검토 필요",
-        "chain_name_pct_title": "% (스킬 새 tokens 대비)",
-        "chain_name_flagged_title": " · advice 에서 지적됨 (",
-        "chain_head_new_tokens_title": "새 tokens (input + output + cache write); cache read ",
-        "chain_head_ambient_title": " 은 주변값, 순위에서 제외",
+        "chain_name_pct_title": "% (스킬 귀속 사용 tokens 대비)",
+        "chain_name_flagged_title": " · Advice에서 지적됨 (",
+        # Tooltip concatenation is head + formatted number + ambient, so the
+        # head keeps its trailing space and the particle attaches to the
+        # number: "cache read 1,234는 …".
+        "chain_head_new_tokens_title": "귀속 사용 tokens (input + output + cache write); cache read ",
+        "chain_head_ambient_title": "는 호출 시점 배경 컨텍스트라 순위에서 제외",
         "chain_head_over_turns": " · ",
         "chain_head_avg_over": " · 평균 ",
-        "chain_head_turns_total_new": " turns, 총 신규 ",
-        "chain_detail_new": "신규 ",
+        "chain_head_turns_total_new": " turns, 총 귀속 사용 ",
+        "chain_detail_new": "귀속 사용 ",
         "chain_detail_input": " (input ",
         "chain_detail_output": " · output ",
         "chain_detail_cache_write": " · cache write ",
         "chain_detail_cache_read": " · cache read ",
-        "chain_detail_ambient": " (주변값)",
+        "chain_detail_ambient": " (ambient)",
         "chain_detail_tool_calls": " 도구 호출, ",
         "chain_detail_results": " 결과",
         "chain_tool_calls_total_title": " 총 호출",
@@ -380,18 +417,20 @@ UI_STRINGS: dict[str, dict[str, str]] = {
         "chain_tool_total_of_title": "총 ",
         "chain_tool_total_over_title": " 총, ",
         "chain_nested_note": "위의 중첩 Skill 디스패치는 각자의 스킬 행에 집계됩니다",
-        "chain_no_tools": "이 스킬 turn 에는 도구 호출이 없습니다",
+        "chain_no_tools": "이 스킬 turn에는 도구 호출이 없습니다",
         # --- agent types ---
-        "agent_title": "디스패치 유형별 서브에이전트 새 tokens (cache read 는 주변값, 제외)",
+        "agent_title": "디스패치 유형별 서브에이전트 귀속 사용 tokens",
+        "agent_title_sub": "귀속 사용 tokens는 input + output + cache write입니다. "
+        "cache read는 호출 시점 배경 컨텍스트라 순위에서 제외합니다.",
         "agent_col_type": "유형",
         "agent_col_agents": "에이전트",
         "agent_col_req": "req",
-        "agent_col_new_tokens": "새 tokens",
-        "agent_new_tokens_title": "새 tokens = input ",
+        "agent_col_new_tokens": "귀속 사용 tokens",
+        "agent_new_tokens_title": "귀속 사용 tokens = input ",
         "agent_output_title": " · output ",
         "agent_cache_write_title": " · cache write ",
         "agent_cache_read_title": " — cache read ",
-        "agent_ambient_title": " 주변값, 제외",
+        "agent_ambient_title": " 배경 컨텍스트, 순위 제외",
         # --- projects table ---
         "projects_empty": "프로젝트가 없습니다",
         "proj_col_project": "프로젝트",
@@ -429,7 +468,7 @@ UI_STRINGS: dict[str, dict[str, str]] = {
         "sess_subagents_title": " · 서브에이전트 ",
         "sess_precompact_title": "compaction 직전 tokens: ",
         # --- duplicate reads table ---
-        "dup_empty": "중복 읽기가 없습니다 — 한 컨텍스트에서 같은 파일을 두 번 Read 하지 않았습니다",
+        "dup_empty": "중복 읽기가 없습니다 — 한 컨텍스트에서 같은 파일을 두 번 읽지 않았습니다",
         "dup_col_file": "파일",
         "dup_col_reads": "읽기",
         "dup_col_wasted": "낭비",
@@ -447,7 +486,7 @@ UI_STRINGS: dict[str, dict[str, str]] = {
         # --- meta line ---
         "meta_generated": "생성 ",
         "meta_input": "입력 ",
-        "meta_since": "이후 ",
+        "meta_since": "시작 ",
         "meta_project": "프로젝트 ~ ",
         "meta_redacted": "경로 가림",
         # --- confidence tags (section headers) ---
@@ -458,6 +497,35 @@ UI_STRINGS: dict[str, dict[str, str]] = {
         "conf_projects": "측정값",
         "conf_sessions": "cache eff: 측정값",
         "conf_dup": "추정값 (Read 만)",
+        "confnote_tokens": "측정값 — line UUID와 API message ID로 사용량을 중복 제거하여 "
+        "fork·continue가 복사한 이력은 전체 corpus에서 한 번만 셉니다.",
+        "confnote_tool_calls": "측정값 — tool-use ID별로 도구 호출을 한 번만 셉니다.",
+        "confnote_tool_result_bytes": "측정값 — 모델 컨텍스트로 들어온 직렬화된 "
+        "tool-result payload 크기입니다.",
+        "confnote_dup_reads": "추정값 — Read의 file path 반복만 포함합니다. cat과 "
+        "Grep을 통한 재읽기는 관측하지 못합니다.",
+        "confnote_cache_efficiency": "측정값 — 세션별 cache read / (input + cache read)입니다.",
+        "confnote_fork_attribution": "추정값 — fork에서는 실제로 발생한 활동만 "
+        "보고하며, 상속된 이력은 먼저 발견한 세션에 남습니다.",
+        "confnote_subagent_types": "측정값 — toolUseResult.agentId로 sidechain tokens와 "
+        "디스패치 유형을 연결합니다. 연결되지 않으면 귀속 불명으로 둡니다.",
+        "confnote_skill_chains": "측정 귀속값 — attributionSkill이 찍힌 assistant turn "
+        "전체를 스킬별로 묶고, tool-use ID로 도구 결과를 연결합니다.",
+        "confnote_per_tool_tokens": "의도적으로 근사함 — token 사용량은 API response "
+        "단위이므로 개별 도구에 나누어 귀속하지 않습니다.",
+        "confname_tokens": "Token 사용량",
+        "confname_tool_calls": "도구 호출 수",
+        "confname_tool_result_bytes": "도구 결과 bytes",
+        "confname_dup_reads": "중복 읽기",
+        "confname_cache_efficiency": "Cache 효율",
+        "confname_fork_attribution": "Fork 귀속",
+        "confname_subagent_types": "서브에이전트 유형",
+        "confname_skill_chains": "스킬 체인",
+        "confname_per_tool_tokens": "도구별 tokens",
+        "flag_dup-read": "중복 읽기",
+        "flag_low-cache": "낮은 cache",
+        "flag_compacted": "compaction 발생",
+        "flag_errors": "오류",
         # --- warnings + footer ---
         "warn_summary_pre": "파싱 경고 (",
         "warn_summary_showing": ", 처음 ",
@@ -465,6 +533,6 @@ UI_STRINGS: dict[str, dict[str, str]] = {
         "warn_col_file": "파일",
         "warn_col_line": "줄",
         "warn_col_reason": "사유",
-        "footer_suffix": " — 로컬 폐루프 분석; 청구 소스 아님 (비용은 ccusage 사용).",
+        "footer_suffix": " — 외부 전송 없는 로컬 분석; 청구 소스 아님 (비용은 ccusage 사용).",
     },
 }

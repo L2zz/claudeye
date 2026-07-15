@@ -39,7 +39,7 @@ def _advice_level(rule: str, evidence: dict[str, Any], cfg: AdviceConfig) -> str
     return "critical" if escalated else base
 
 
-def advice_rule_catalog(cfg: AdviceConfig) -> dict[str, dict[str, str]]:
+def advice_rule_catalog(cfg: AdviceConfig) -> dict[str, dict[str, Any]]:
     """Build the human-readable rule catalog from the active thresholds.
 
     Shown in the report so a reader can see what a rule checks — and why
@@ -57,6 +57,15 @@ def advice_rule_catalog(cfg: AdviceConfig) -> dict[str, dict[str, str]]:
                 f"skill so it need not be re-read every time. Critical at "
                 f"{cfg.dup_critical_wasted}+ wasted."
             ),
+            "title_i18n": {"ko": "중복 읽기 집중 지점"},
+            "definition_i18n": {
+                "ko": (
+                    f"{cfg.dup_sessions_min}개 이상 세션에서 같은 파일의 불필요한 재읽기가 "
+                    f"{cfg.dup_wasted_min}회 이상 발생합니다. CLAUDE.md나 스킬로 요약하여 "
+                    f"반복 읽기를 줄일 수 있습니다. {cfg.dup_critical_wasted}회 이상이면 "
+                    "critical입니다."
+                )
+            },
         },
         "compaction-pressure": {
             "level": ADVICE_BASE_LEVEL["compaction-pressure"],
@@ -66,6 +75,14 @@ def advice_rule_catalog(cfg: AdviceConfig) -> dict[str, dict[str, str]]:
                 "context filled up more than once. Split the work or preserve task "
                 f"state earlier. Critical at {cfg.compactions_critical}+."
             ),
+            "title_i18n": {"ko": "Compaction 압력"},
+            "definition_i18n": {
+                "ko": (
+                    f"한 세션에서 compaction이 {cfg.compactions_min}회 이상 발생했습니다. "
+                    "작업을 나누거나 상태를 더 일찍 보존하는 방안을 검토합니다. "
+                    f"{cfg.compactions_critical}회 이상이면 critical입니다."
+                )
+            },
         },
         "low-cache-pattern": {
             "level": ADVICE_BASE_LEVEL["low-cache-pattern"],
@@ -76,6 +93,15 @@ def advice_rule_catalog(cfg: AdviceConfig) -> dict[str, dict[str, str]]:
                 f"least {cfg.low_cache_min_sessions} rated sessions. Long resume gaps "
                 "defeat the 5-minute prompt cache."
             ),
+            "title_i18n": {"ko": "낮은 cache 효율"},
+            "definition_i18n": {
+                "ko": (
+                    f"측정 가능한 세션이 {cfg.low_cache_min_sessions}개 이상일 때, 그중 "
+                    f"{int(cfg.low_cache_share * 100)}%보다 많은 세션의 cache 효율이 "
+                    f"{int(WASTE_CACHE_EFF_MAX * 100)}% 미만입니다. 긴 재개 간격은 "
+                    "5분 prompt cache를 활용하지 못하게 할 수 있습니다."
+                )
+            },
         },
         "huge-tool-result": {
             "level": ADVICE_BASE_LEVEL["huge-tool-result"],
@@ -85,6 +111,14 @@ def advice_rule_catalog(cfg: AdviceConfig) -> dict[str, dict[str, str]]:
                 "the context in one shot. Prefer offset/limit reads, head/tail, or "
                 f"narrower queries. Critical at {cfg.result_bytes_critical // 1024} KB+."
             ),
+            "title_i18n": {"ko": "큰 도구 결과"},
+            "definition_i18n": {
+                "ko": (
+                    f"한 번의 도구 결과 {cfg.result_bytes_min // 1024}KB 이상이 모델 "
+                    "컨텍스트로 들어왔습니다. offset/limit, head/tail 또는 더 좁은 질의를 "
+                    f"검토합니다. {cfg.result_bytes_critical // 1024}KB 이상이면 critical입니다."
+                )
+            },
         },
         "skill-heavy-turns": {
             "level": ADVICE_BASE_LEVEL["skill-heavy-turns"],
@@ -98,6 +132,17 @@ def advice_rule_catalog(cfg: AdviceConfig) -> dict[str, dict[str, str]]:
                 f"instructions. Critical at {cfg.skill_critical_new_spend_per_turn // 1000}k+ "
                 "new tokens/turn."
             ),
+            "title_i18n": {"ko": "스킬 turn의 큰 귀속 사용량"},
+            "definition_i18n": {
+                "ko": (
+                    f"최소 {cfg.skill_min_turns}개 turn에서 스킬의 turn당 귀속 사용량이 "
+                    f"{cfg.skill_new_spend_per_turn // 1000}k tokens 이상이거나, 도구 결과가 "
+                    f"{cfg.skill_result_bytes_per_turn // 1024}KB 이상이거나, 도구 호출이 "
+                    f"{cfg.skill_fanout_per_turn}회 이상입니다. 스킬 분리나 지침 축소를 "
+                    f"검토합니다. {cfg.skill_critical_new_spend_per_turn // 1000}k tokens/turn "
+                    "이상이면 critical입니다."
+                )
+            },
         },
     }
 
@@ -135,6 +180,8 @@ def _build_advice(
                         "CLAUDE.md or a skill"
                     ),
                     "evidence": {
+                        "path": row["path"],
+                        "reads": row["reads"],
                         "wasted_reads": row["wasted_reads"],
                         "sessions": row["sessions"],
                     },
@@ -158,6 +205,7 @@ def _build_advice(
                 ),
                 "evidence": {
                     "sessions": len(compacted),
+                    "worst_session": worst["session_id"][:8],
                     "worst_compactions": worst["compactions"],
                 },
             }
@@ -197,6 +245,7 @@ def _build_advice(
                 "evidence": {
                     "turns": row["requests"],
                     "new_tokens_per_turn": round(new_spend),
+                    "signals": signals,
                 },
             }
         )
@@ -244,7 +293,59 @@ def _build_advice(
 
     for item in advice:
         item["level"] = _advice_level(item["rule"], item.get("evidence", {}), cfg)
+        _attach_korean_copy(item, cfg)
     # Most severe first (stable within a level preserves rule priority),
     # so the cap keeps critical items over merely-notable ones.
     advice.sort(key=lambda it: LEVEL_ORDER.index(it["level"]), reverse=True)
     return advice[: cfg.max_items]
+
+
+def _attach_korean_copy(item: dict[str, Any], cfg: AdviceConfig) -> None:
+    """Attach Korean presentation copy without changing rule semantics."""
+    evidence = item.get("evidence", {})
+    rule = item["rule"]
+    if rule == "dup-read-hotspot":
+        message = (
+            f"{evidence['path']}을 {evidence['sessions']}개 세션에서 "
+            f"{evidence['reads']}회 읽었습니다. CLAUDE.md나 스킬로 요약하는 방안을 "
+            "검토하세요."
+        )
+    elif rule == "compaction-pressure":
+        message = (
+            f"{evidence['sessions']}개 세션에서 compaction이 {cfg.compactions_min}회 이상 "
+            f"발생했습니다. 최다는 {evidence['worst_session']} 세션의 "
+            f"{evidence['worst_compactions']}회입니다. 작업 분리나 조기 상태 보존을 "
+            "검토하세요."
+        )
+    elif rule == "skill-heavy-turns":
+        signals = (
+            " · ".join(evidence.get("signals", []))
+            .replace("new tokens/turn", "귀속 사용 tokens/turn")
+            .replace("tool results/turn", "도구 결과/turn")
+            .replace("tool calls/turn", "도구 호출/turn")
+        )
+        message = (
+            f"스킬 {item['target']['name']}에서 {evidence['turns']}개 turn 동안 평균 "
+            f"{signals}가 관측됐습니다. 스킬 분리나 지침 축소를 검토하세요."
+        )
+    elif rule == "low-cache-pattern":
+        share = round(100 * evidence["low_sessions"] / evidence["rated_sessions"])
+        message = (
+            f"전체 대비 {share}%의 세션({evidence['low_sessions']}/"
+            f"{evidence['rated_sessions']})에서 cache 효율이 "
+            f"{int(WASTE_CACHE_EFF_MAX * 100)}% 미만입니다. 긴 재개 간격이 5분 "
+            "prompt cache를 벗어났을 수 있습니다."
+        )
+    else:
+        message = (
+            f"{evidence['tool']}의 단일 결과 {evidence['max_result_bytes'] // 1024}KB가 "
+            "모델 컨텍스트로 들어왔습니다. offset/limit, head/tail 또는 더 좁은 "
+            "질의를 검토하세요."
+        )
+    confidence = {
+        "measured": "측정 신호",
+        "inferred": "추정 신호",
+        "measured signal, inferred remedy": "측정 신호 · 추정 처방",
+    }.get(item["confidence"], item["confidence"])
+    item["message_i18n"] = {"ko": message}
+    item["confidence_i18n"] = {"ko": confidence}

@@ -372,6 +372,33 @@ class SummaryAndRenderTest(unittest.TestCase):
         self.assertIn("data-i18n=", html)
         self.assertIn("모델별 일별 토큰", html)  # STRINGS.ko present
 
+    def test_language_toggle_rerenders_dynamic_report_regions(self):
+        result, warnings = run_pipeline()
+        html = cua.render_html(make_summary(result, warnings, lang="ko"))
+        self.assertIn("let T = STRINGS[lang]", html)
+        self.assertIn("T = STRINGS[lang]", html)
+        self.assertIn("renderLocalized();", html)
+        self.assertIn('data-i18n="brand_sub"', html)
+
+    def test_both_languages_cover_the_same_ui_keys(self):
+        from claudeye.render.strings import UI_STRINGS
+
+        self.assertEqual(set(UI_STRINGS["en"]), set(UI_STRINGS["ko"]))
+        self.assertEqual(UI_STRINGS["ko"]["sec_tools"], "도구 결과 크기")
+        for name in (
+            "tokens",
+            "tool_calls",
+            "tool_result_bytes",
+            "dup_reads",
+            "cache_efficiency",
+            "fork_attribution",
+            "subagent_types",
+            "skill_chains",
+            "per_tool_tokens",
+        ):
+            self.assertIn(f"confname_{name}", UI_STRINGS["ko"])
+            self.assertIn(f"confnote_{name}", UI_STRINGS["ko"])
+
     def test_redaction_hides_directories_keeps_basenames(self):
         result, warnings = run_pipeline()
         summary = make_summary(result, warnings, redact_paths=True)
@@ -734,6 +761,8 @@ class AdviceRulesTest(unittest.TestCase):
         for rule in summary["advice_rules"].values():
             self.assertIn("title", rule)
             self.assertIn("definition", rule)
+            self.assertIn("ko", rule["title_i18n"])
+            self.assertIn("ko", rule["definition_i18n"])
         self.assertEqual(
             summary["advice_thresholds"]["skill_min_turns"],
             cua.AdviceConfig().skill_min_turns,
@@ -746,6 +775,8 @@ class AdviceRulesTest(unittest.TestCase):
         catalog = cua.advice_rule_catalog(cua.AdviceConfig())
         for item in advice:
             self.assertIn(item["rule"], catalog)
+            self.assertIn("ko", item["message_i18n"])
+            self.assertIn("ko", item["confidence_i18n"])
 
     def test_levels_assigned_and_escalated(self):
         # skill at 2x threshold escalates to critical; a modest one stays warn.
