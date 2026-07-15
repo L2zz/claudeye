@@ -640,8 +640,7 @@ function renderAdvice() {
     div.appendChild(document.createTextNode(message));
     (item.confidence_refs || []).forEach(ref => {
       const metric = T["confname_" + ref.metric] || ref.metric;
-      const kind = ref.kind === "measured" ? T.confkind_measured : T.confkind_inferred;
-      div.appendChild(el("span", "conf-tag", metric + " · " + kind));
+      div.appendChild(el("span", "conf-tag", metric));
     });
     if (rule) {
       const definition = rule.definition_i18n && rule.definition_i18n[lang]
