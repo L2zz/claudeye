@@ -82,6 +82,8 @@ curl -fsSL https://raw.githubusercontent.com/L2zz/claudeye/main/install.sh | bas
 uv tool install git+https://github.com/L2zz/claudeye
 # 또는
 pipx install git+https://github.com/L2zz/claudeye
+# 또는
+pip install git+https://github.com/L2zz/claudeye
 ```
 
 ## 3. 빠른 시작
