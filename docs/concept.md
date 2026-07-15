@@ -1,12 +1,14 @@
 # Concept
 
-claudeye is a local, closed-loop analyzer of coding-agent transcripts — Claude
-Code (`~/.claude/projects`) and OpenAI Codex (`~/.codex/sessions`), selected with
-`--source`. Each agent has a lenient adapter behind one `SessionSource` port that
-normalizes its on-disk format onto a shared Event model; the rest of the pipeline
-is agent-agnostic. It finds context-waste patterns and emits a self-contained
-HTML report plus a summary JSON. This document is the source of truth for *why*
-it exists and *what lines it will not cross*.
+claudeye is a local analyzer of coding-agent transcripts — Claude Code
+(`~/.claude/projects`) and OpenAI Codex (`~/.codex/sessions`), selected with
+`--source` — built as the measurement instrument for closed-loop harness work:
+it does not close the loop itself, it produces the measurements a loop reads.
+Each agent has a lenient adapter behind one `SessionSource` port that normalizes
+its on-disk format onto a shared Event model; the rest of the pipeline is
+agent-agnostic. It finds context-waste patterns and emits a self-contained HTML
+report plus a summary JSON. This document is the source of truth for *why* it
+exists and *what lines it will not cross*.
 
 ## Why it exists
 
@@ -18,12 +20,17 @@ Two motivations, in order:
    page that answers "what is polluting my context?". It is **not** a billing
    tool (use ccusage for cost) — it is a *waste-pattern detector*.
 
-2. **Evolve the harness with an agent.** The real goal is a loop: an agent reads
-   the observation and improves the harness (skills, rules, CLAUDE.md). So the
-   output is deliberately **static, self-contained, and easy for an agent to
-   parse** — an HTML page for humans, a summary JSON for agents, and an advice
-   section that has already translated waste into actionable, levelled hints.
-   The author consumes this from a weekly `dream` routine.
+2. **Be the measurement layer of a self-improving harness.** The real goal is a
+   loop: a reflection routine reads the observation and improves the harness
+   (skills, rules, CLAUDE.md). claudeye only instruments that loop — reflection
+   and edits belong to your harness. So the output is deliberately **static,
+   self-contained, and easy for an agent to parse**: an HTML page for humans,
+   and the `--data-dir` facet files (plus a summary JSON) as the loop's
+   file-system interface. This is the quantitative half of the loop;
+   correction-capture tools (claude-reflect and kin) record what the user
+   corrected in dialogue — the qualitative half.
+   The advice section has already translated measured waste into actionable,
+   levelled hints; the author consumes it from a weekly `dream` routine.
 
 ## What it is / is not
 
