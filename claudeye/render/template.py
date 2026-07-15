@@ -385,6 +385,11 @@ renderLangToggle();
 const advice = S.advice || [];
 const adviceRules = S.advice_rules || {};
 const adviceTh = S.advice_thresholds || {};
+const skillWhatifState = {
+  turns: adviceTh.skill_min_turns,
+  spend: adviceTh.skill_new_spend_per_turn,
+  critical: adviceTh.skill_critical_new_spend_per_turn,
+};
 const LEVEL_ORDER = ["info", "warn", "critical"];
 const hiddenRules = new Set();
 let minLevel = "info"; // like a log level: show items at this severity or above
@@ -744,14 +749,14 @@ function renderSkillWhatif() {
   const inputs = el("div", "wi-inputs");
   const turnsLabel = el("label", null, T.wi_min_turns);
   const turnsInput = el("input"); turnsInput.type = "number"; turnsInput.min = "1";
-  turnsInput.value = adviceTh.skill_min_turns; turnsLabel.appendChild(turnsInput);
+  turnsInput.value = skillWhatifState.turns; turnsLabel.appendChild(turnsInput);
   const spendLabel = el("label", null, T.wi_warn_ge);
   const spendInput = el("input"); spendInput.type = "number"; spendInput.min = "0";
-  spendInput.step = "5000"; spendInput.value = adviceTh.skill_new_spend_per_turn;
+  spendInput.step = "5000"; spendInput.value = skillWhatifState.spend;
   spendLabel.appendChild(spendInput);
   const critLabel = el("label", null, T.wi_critical_ge);
   const critInput = el("input"); critInput.type = "number"; critInput.min = "0";
-  critInput.step = "5000"; critInput.value = adviceTh.skill_critical_new_spend_per_turn;
+  critInput.step = "5000"; critInput.value = skillWhatifState.critical;
   critLabel.appendChild(critInput);
   const reset = el("button", null, T.wi_reset);
   inputs.appendChild(turnsLabel); inputs.appendChild(spendLabel);
@@ -778,6 +783,9 @@ function renderSkillWhatif() {
     const Tturns = Number(turnsInput.value) || 0;
     const Tspend = Number(spendInput.value) || 0;
     const Tcrit = Number(critInput.value) || 0;
+    skillWhatifState.turns = Tturns;
+    skillWhatifState.spend = Tspend;
+    skillWhatifState.critical = Tcrit;
     snippet.textContent = JSON.stringify({ advice: {
       skill_min_turns: Tturns,
       skill_new_spend_per_turn: Tspend,
@@ -814,9 +822,9 @@ function renderSkillWhatif() {
   spendInput.addEventListener("input", draw);
   critInput.addEventListener("input", draw);
   reset.addEventListener("click", () => {
-    turnsInput.value = adviceTh.skill_min_turns;
-    spendInput.value = adviceTh.skill_new_spend_per_turn;
-    critInput.value = adviceTh.skill_critical_new_spend_per_turn;
+    turnsInput.value = skillWhatifState.turns = adviceTh.skill_min_turns;
+    spendInput.value = skillWhatifState.spend = adviceTh.skill_new_spend_per_turn;
+    critInput.value = skillWhatifState.critical = adviceTh.skill_critical_new_spend_per_turn;
     draw();
   });
   draw();
@@ -1241,6 +1249,7 @@ function renderProjects() {
 }
 
 /* 5 — sessions table */
+const sessionTableState = { sortKey: "total_tokens", sortDir: -1, showAll: false };
 function renderSessions() {
   const wrap = document.getElementById("sessions-wrap");
   wrap.textContent = "";
@@ -1289,7 +1298,6 @@ function renderSessions() {
           el("span", "flag " + flag, T["flag_" + flag] || flag)));
       } },
   ];
-  let sortKey = "total_tokens", sortDir = -1, showAll = false;
   const table = el("table");
   const thead = el("thead");
   const groupRow = el("tr", "col-groups");
@@ -1305,7 +1313,8 @@ function renderSessions() {
   COLS.forEach(col => {
     const th = el("th", "sortable" + (col.text ? " text" : ""), col.label);
     th.addEventListener("click", () => {
-      if (sortKey === col.key) sortDir *= -1; else { sortKey = col.key; sortDir = -1; }
+      if (sessionTableState.sortKey === col.key) sessionTableState.sortDir *= -1;
+      else { sessionTableState.sortKey = col.key; sessionTableState.sortDir = -1; }
       drawBody(); markSorted();
     });
     th.dataset.key = col.key;
@@ -1315,21 +1324,23 @@ function renderSessions() {
   const tbody = el("tbody"); table.appendChild(tbody);
   function markSorted() {
     headRow.querySelectorAll("th").forEach(th => {
-      const base = th.dataset.key === sortKey ? (sortDir < 0 ? " ▾" : " ▴") : "";
+      const base = th.dataset.key === sessionTableState.sortKey
+        ? (sessionTableState.sortDir < 0 ? " ▾" : " ▴") : "";
       th.textContent = COLS.find(c => c.key === th.dataset.key).label + base;
     });
   }
   function drawBody() {
-    const col = COLS.find(c => c.key === sortKey);
+    const col = COLS.find(c => c.key === sessionTableState.sortKey);
     const value = row => col.sortValue ? col.sortValue(row)
-      : row[sortKey] === null || row[sortKey] === undefined ? -Infinity : row[sortKey];
+      : row[sessionTableState.sortKey] === null || row[sessionTableState.sortKey] === undefined
+        ? -Infinity : row[sessionTableState.sortKey];
     const sorted = [...S.sessions].sort((a, b) => {
       const va = value(a), vb = value(b);
       if (typeof va === "string" || typeof vb === "string")
-        return String(va).localeCompare(String(vb)) * sortDir;
-      return (va - vb) * sortDir;
+        return String(va).localeCompare(String(vb)) * sessionTableState.sortDir;
+      return (va - vb) * sessionTableState.sortDir;
     });
-    const rows = showAll ? sorted : sorted.slice(0, SESSION_LIMIT);
+    const rows = sessionTableState.showAll ? sorted : sorted.slice(0, SESSION_LIMIT);
     tbody.textContent = "";
     rows.forEach(row => {
       const tr = el("tr");
@@ -1342,13 +1353,16 @@ function renderSessions() {
       });
       tbody.appendChild(tr);
     });
-    toggleBtn.textContent = showAll
+    toggleBtn.textContent = sessionTableState.showAll
       ? T.show_top_only_pre + SESSION_LIMIT + T.show_top_only_post
       : T.show_all_pre + S.sessions.length + " " + T.noun_sessions;
     toggleBtn.style.display = S.sessions.length > SESSION_LIMIT ? "" : "none";
   }
   const toggleBtn = el("button", "show-toggle");
-  toggleBtn.addEventListener("click", () => { showAll = !showAll; drawBody(); });
+  toggleBtn.addEventListener("click", () => {
+    sessionTableState.showAll = !sessionTableState.showAll;
+    drawBody();
+  });
   drawBody(); markSorted();
   wrap.appendChild(table);
   wrap.appendChild(toggleBtn);
