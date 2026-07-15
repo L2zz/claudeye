@@ -12,9 +12,8 @@ class Claudeye < Formula
   desc "An eye on your Claude Code usage — find context-waste patterns locally"
   homepage "https://github.com/L2zz/claudeye"
   url "https://github.com/L2zz/claudeye/archive/refs/tags/v0.1.0.tar.gz"
-  # Replace with the real tarball sha256 at release time:
-  #   brew fetch --build-from-source ./Formula/claudeye.rb
-  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  # Updated automatically in L2zz/homebrew-tap from published releases.
+  sha256 "3fa0c7691919d126491d59edf5df3e2bba06d6c27da15f2e34445aa0b89f065b"
   license "MIT"
 
   depends_on "python@3.12"
