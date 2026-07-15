@@ -26,13 +26,9 @@ Two motivations, in order:
    and edits belong to your harness. So the output is deliberately **static,
    self-contained, and easy for an agent to parse**: an HTML page for humans,
    and the `--data-dir` facet files (plus a summary JSON) as the loop's
-   file-system interface — exactly what harness engineering calls for,
-   *measurable, objective metrics* with *the file system as persistent memory*
-   (Lilian Weng,
-   ["Harness Engineering for Self-Improvement"](https://lilianweng.github.io/posts/2026-07-04-harness/),
-   2026-07). This is
-   the quantitative half of the loop; correction-capture tools (claude-reflect
-   and kin) record what the user corrected in dialogue — the qualitative half.
+   file-system interface. This is the quantitative half of the loop;
+   correction-capture tools (claude-reflect and kin) record what the user
+   corrected in dialogue — the qualitative half.
    The advice section has already translated measured waste into actionable,
    levelled hints; the author consumes it from a weekly `dream` routine.
 

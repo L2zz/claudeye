@@ -40,9 +40,7 @@ as an instrument → reflection → edit loop: claudeye measures, a reflection
 routine reads the `--data-dir` facets, and the edits land in skills, rules, and
 CLAUDE.md. Correction-capture tools record what you corrected in dialogue — the
 qualitative half; claudeye measures what the transcripts actually show — the
-quantitative half of the same loop. (This is the loop
-[harness engineering](https://lilianweng.github.io/posts/2026-07-04-harness/)
-asks for: measurable, objective metrics, with the file system as memory.)
+quantitative half of the same loop.
 
 For example, a weekly reflection skill reads the `--data-dir` output and turns
 recurring waste into rule and skill improvements:
@@ -66,19 +64,19 @@ description: Read last week's claudeye output and propose harness improvements
 
 Pick whichever of the three is easiest.
 
-Homebrew:
+### Homebrew
 
 ```bash
 brew install L2zz/tap/claudeye
 ```
 
-curl install script (uses uv / pipx / pip, whichever you have):
+### curl install script (uses uv / pipx / pip, whichever you have)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/L2zz/claudeye/main/install.sh | bash
 ```
 
-uv / pipx / pip directly:
+### uv / pipx / pip directly
 
 ```bash
 uv tool install git+https://github.com/L2zz/claudeye
@@ -123,8 +121,8 @@ The report is summary cards + Advice + diagnostic sections.
 
 ### Top cards
 
-- `volume` — total tokens, new spend, cache reuse, tool activity, peak day, model mix.
-- `waste signals` — tool pollution, waste signals, parse warnings. They turn a warning color when nonzero and jump to the matching section on click.
+- `volume` — total tokens, new tokens spent, cache reuse, tool activity, peak day, model mix.
+- `waste signals` — tool-result size, waste signals, parse warnings. They turn a warning color when nonzero and jump to the matching section on click.
 
 ### Advice
 
@@ -139,7 +137,7 @@ A section that turns data inferred as waste into actionable advice.
 Each looks at one axis of waste.
 
 - `Daily tokens` — tokens per day. Saturation = new spend, muted = cache reuse.
-- `Tool pollution ranking` — tools ranked by context re-entered (result bytes).
+- `Tool-result sizes` — result payload sizes by tool.
 - `Skill & subagent chains` — tokens per skill/subagent. Click a row for its tool composition.
 - `Duplicate reads` — files read repeatedly across sessions.
 - `Projects` — per-project rollup (labelled by the real working-directory cwd).
