@@ -637,10 +637,11 @@ function renderAdvice() {
     div.appendChild(el("span", "rule", ruleTitle));
     const message = item.message_i18n && item.message_i18n[lang]
       ? item.message_i18n[lang] : item.message;
-    const confidence = item.confidence_i18n && item.confidence_i18n[lang]
-      ? item.confidence_i18n[lang] : item.confidence;
+    const confidenceTags = item.confidence_tags_i18n && item.confidence_tags_i18n[lang]
+      ? item.confidence_tags_i18n[lang]
+      : (item.confidence_tags || item.confidence.split(",").map(tag => tag.trim()));
     div.appendChild(document.createTextNode(message));
-    div.appendChild(el("span", "conf-tag", confidence));
+    confidenceTags.forEach(tag => div.appendChild(el("span", "conf-tag", tag)));
     if (rule) {
       const definition = rule.definition_i18n && rule.definition_i18n[lang]
         ? rule.definition_i18n[lang] : rule.definition;

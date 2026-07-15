@@ -173,7 +173,7 @@ def _build_advice(
             advice.append(
                 {
                     "rule": "dup-read-hotspot",
-                    "confidence": "inferred",
+                    "confidence": "inferred signal, inferred remedy",
                     "message": (
                         f"{row['path']} was re-read {row['reads']}x across "
                         f"{row['sessions']} sessions — consider summarizing it into "
@@ -260,7 +260,7 @@ def _build_advice(
         advice.append(
             {
                 "rule": "low-cache-pattern",
-                "confidence": "inferred",
+                "confidence": "inferred signal, inferred remedy",
                 "message": (
                     f"{round(100 * len(low) / len(rated))}% of sessions "
                     f"({len(low)}/{len(rated)}) ran below "
@@ -277,7 +277,7 @@ def _build_advice(
         advice.append(
             {
                 "rule": "huge-tool-result",
-                "confidence": "measured",
+                "confidence": "measured signal, inferred remedy",
                 "message": (
                     f"a single {row['name']} result of "
                     f"{row['max_result_bytes'] // 1024} KB re-entered the context — "
@@ -342,10 +342,15 @@ def _attach_korean_copy(item: dict[str, Any], cfg: AdviceConfig) -> None:
             "모델 컨텍스트로 들어왔습니다. offset/limit, head/tail 또는 더 좁은 "
             "질의를 검토하세요."
         )
-    confidence = {
-        "measured": "측정 신호",
-        "inferred": "추정 신호",
-        "measured signal, inferred remedy": "측정 신호 · 추정 처방",
-    }.get(item["confidence"], item["confidence"])
+    confidence_tags = [tag.strip() for tag in item["confidence"].split(",")]
+    translated_tags = [
+        {
+            "measured signal": "측정 신호",
+            "inferred signal": "추정 신호",
+            "inferred remedy": "추정 처방",
+        }.get(tag, tag)
+        for tag in confidence_tags
+    ]
     item["message_i18n"] = {"ko": message}
-    item["confidence_i18n"] = {"ko": confidence}
+    item["confidence_tags"] = confidence_tags
+    item["confidence_tags_i18n"] = {"ko": translated_tags}
