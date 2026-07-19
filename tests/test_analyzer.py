@@ -438,6 +438,7 @@ class SummaryAndRenderTest(unittest.TestCase):
         html_text = cua.render_html(make_summary(result, warnings))
         self.assertIn("function dateTickIndices(days, maxLabels, minLabelSlots)", html_text)
         self.assertIn("const DATE_LABEL_GAP = 56", html_text)
+        self.assertIn("days.length - 1 - index < minLabelSlots", html_text)
         self.assertIn("const hasRoom = [...ticks].every", html_text)
         self.assertIn('day.slice(8) !== "01"', html_text)
         self.assertIn("if (!dateLabelIndices.has(i)) return;", html_text)

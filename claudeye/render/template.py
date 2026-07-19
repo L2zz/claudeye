@@ -864,7 +864,12 @@ function dateTickIndices(days, maxLabels, minLabelSlots) {
   // boundary when possible so long ranges retain calendar context.
   const step = Math.ceil((days.length - 1) / (maxLabels - 1));
   const ticks = new Set([0, days.length - 1]);
-  for (let index = step; index < days.length - 1; index += step) ticks.add(index);
+  for (let index = step; index < days.length - 1; index += step) {
+    // The end anchor is mandatory, so do not place a regular tick in its
+    // reserved label space.
+    if (days.length - 1 - index < minLabelSlots) continue;
+    ticks.add(index);
+  }
 
   days.forEach((day, index) => {
     if (index === 0 || index === days.length - 1 || day.slice(8) !== "01") return;
