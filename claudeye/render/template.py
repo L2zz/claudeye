@@ -856,6 +856,35 @@ function hideTip() { chartTip.style.display = "none"; }
 
 /* 1 — daily stacked bars (SVG) */
 let daysExpanded = false;
+function dateTickIndices(days, maxLabels, minLabelSlots) {
+  if (days.length <= maxLabels) return new Set(days.map((_, index) => index));
+
+  // Start and end anchors make the visible range explicit.  The remaining
+  // labels are evenly spaced, with a nearby regular tick traded for a month
+  // boundary when possible so long ranges retain calendar context.
+  const step = Math.ceil((days.length - 1) / (maxLabels - 1));
+  const ticks = new Set([0, days.length - 1]);
+  for (let index = step; index < days.length - 1; index += step) {
+    // The end anchor is mandatory, so do not place a regular tick in its
+    // reserved label space.
+    if (days.length - 1 - index < minLabelSlots) continue;
+    ticks.add(index);
+  }
+
+  days.forEach((day, index) => {
+    if (index === 0 || index === days.length - 1 || day.slice(8) !== "01") return;
+    const nearby = [...ticks]
+      .filter(tick => tick !== 0 && tick !== days.length - 1 && Math.abs(tick - index) < step)
+      .sort((a, b) => Math.abs(a - index) - Math.abs(b - index))[0];
+    const hasRoom = [...ticks].every(tick => tick === nearby
+      || Math.abs(tick - index) >= minLabelSlots);
+    if (nearby !== undefined && hasRoom) {
+      ticks.delete(nearby);
+      ticks.add(index);
+    }
+  });
+  return ticks;
+}
 function renderDaily() {
   const wrap = document.getElementById("daily-chart");
   wrap.textContent = "";
@@ -920,6 +949,12 @@ function renderDaily() {
   const slot = Math.min((cw - left - 16) / days.length, 88);
   const W = Math.round(left + days.length * slot + 16);
   const barW = Math.max(Math.min(slot * 0.72, 72), 6);
+  // MM-DD labels are about 30px wide; reserve a little breathing room so
+  // labels never overlap at narrow report widths.
+  const DATE_LABEL_GAP = 56;
+  const maxDateLabels = Math.max(2, Math.floor((cw - left - 16) / DATE_LABEL_GAP));
+  const minDateLabelSlots = Math.ceil(DATE_LABEL_GAP / slot);
+  const dateLabelIndices = dateTickIndices(days, maxDateLabels, minDateLabelSlots);
   const svgNS = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(svgNS, "svg");
   svg.setAttribute("width", W); svg.setAttribute("height", H + top + bottom);
@@ -964,6 +999,7 @@ function renderDaily() {
     dayGroup.addEventListener("mousemove", moveTip);
     dayGroup.addEventListener("mouseleave", hideTip);
     svg.appendChild(dayGroup);
+    if (!dateLabelIndices.has(i)) return;
     const label = document.createElementNS(svgNS, "text");
     label.setAttribute("x", x + barW / 2); label.setAttribute("y", top + H + 16);
     label.setAttribute("text-anchor", "middle");

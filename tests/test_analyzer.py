@@ -432,6 +432,17 @@ class SummaryAndRenderTest(unittest.TestCase):
         self.assertNotIn("</", payload.replace("<\\/", ""))
         self.assertEqual(json.loads(payload.replace("<\\/", "</"))["totals"]["sessions"], 3)
 
+    def test_daily_chart_uses_adaptive_date_ticks(self):
+        """Dense daily charts retain range anchors and month context."""
+        result, warnings = run_pipeline()
+        html_text = cua.render_html(make_summary(result, warnings))
+        self.assertIn("function dateTickIndices(days, maxLabels, minLabelSlots)", html_text)
+        self.assertIn("const DATE_LABEL_GAP = 56", html_text)
+        self.assertIn("days.length - 1 - index < minLabelSlots", html_text)
+        self.assertIn("const hasRoom = [...ticks].every", html_text)
+        self.assertIn('day.slice(8) !== "01"', html_text)
+        self.assertIn("if (!dateLabelIndices.has(i)) return;", html_text)
+
     def test_render_json_roundtrip(self):
         result, warnings = run_pipeline()
         summary = make_summary(result, warnings)
